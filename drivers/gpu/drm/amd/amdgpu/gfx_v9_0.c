@@ -736,6 +736,7 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
 static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status);
+static void gfx_v9_0_clear_ras_edc_counter(struct amdgpu_device *adev);
 static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 				     void *inject_if);
 
@@ -4029,7 +4030,7 @@ static const struct soc15_reg_entry sgpr2_init_regs[] = {
    { SOC15_REG_ENTRY(GC, 0, mmCOMPUTE_STATIC_THREAD_MGMT_SE7), 0x0000ff00 },
 };
 
-static const struct soc15_reg_entry sec_ded_counter_registers[] = {
+static const struct soc15_reg_entry gfx_v9_0_edc_counter_regs[] = {
    { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_SCRATCH_CNT), 0, 1, 1},
    { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_UCODE_CNT), 0, 1, 1},
    { SOC15_REG_ENTRY(GC, 0, mmCPF_EDC_ROQ_CNT), 0, 1, 1},
@@ -4118,7 +4119,7 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
 	struct amdgpu_ib ib;
 	struct dma_fence *f = NULL;
-	int r, i, j, k;
+	int r, i;
 	unsigned total_size, vgpr_offset, sgpr_offset;
 	u64 gpu_addr;
 
@@ -4264,18 +4265,7 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 		goto fail;
 	}
 
-	/* read back registers to clear the counters */
-	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++) {
-		for (j = 0; j < sec_ded_counter_registers[i].se_num; j++) {
-			for (k = 0; k < sec_ded_counter_registers[i].instance; k++) {
-				gfx_v9_0_select_se_sh(adev, j, 0x0, k);
-				RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
-			}
-		}
-	}
-	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, 0xe0000000);
-	mutex_unlock(&adev->grbm_idx_mutex);
+	gfx_v9_0_clear_ras_edc_counter(adev);
 
 fail:
 	amdgpu_ib_free(adev, &ib, NULL);
@@ -5546,7 +5536,7 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 }
 
 
-static const struct soc15_ras_field_entry gc_ras_fields_vg20[] = {
+static const struct soc15_ras_field_entry gfx_v9_0_ras_fields[] = {
 	{ "CPC_SCRATCH", SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_SCRATCH_CNT),
 	  SOC15_REG_FIELD(CPC_EDC_SCRATCH_CNT, SEC_COUNT),
 	  SOC15_REG_FIELD(CPC_EDC_SCRATCH_CNT, DED_COUNT)
@@ -6119,7 +6109,7 @@ static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
 	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT, 0);
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < ARRAY_SIZE(vml2_mems); i++) {
 		WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, i);
 		data = RREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_CNT);
 
@@ -6138,7 +6128,7 @@ static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
 		}
 	}
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(vml2_walker_mems); i++) {
 		WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, i);
 		data = RREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_CNT);
 
@@ -6159,7 +6149,7 @@ static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
 		}
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ARRAY_SIZE(atc_l2_cache_2m_mems); i++) {
 		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, i);
 		data = RREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_CNT);
 
@@ -6171,7 +6161,7 @@ static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
 		}
 	}
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < ARRAY_SIZE(atc_l2_cache_4k_mems); i++) {
 		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, i);
 		data = RREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT);
 
@@ -6198,36 +6188,36 @@ static int gfx_v9_0_query_utc_edc_status(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int __get_ras_error_count(const struct soc15_reg_entry *reg,
+static int gfx_v9_0_ras_error_count(const struct soc15_reg_entry *reg,
 	uint32_t se_id, uint32_t inst_id, uint32_t value,
 	uint32_t *sec_count, uint32_t *ded_count)
 {
 	uint32_t i;
 	uint32_t sec_cnt, ded_cnt;
 
-	for (i = 0; i < ARRAY_SIZE(gc_ras_fields_vg20); i++) {
-		if(gc_ras_fields_vg20[i].reg_offset != reg->reg_offset ||
-			gc_ras_fields_vg20[i].seg != reg->seg ||
-			gc_ras_fields_vg20[i].inst != reg->inst)
+	for (i = 0; i < ARRAY_SIZE(gfx_v9_0_ras_fields); i++) {
+		if(gfx_v9_0_ras_fields[i].reg_offset != reg->reg_offset ||
+			gfx_v9_0_ras_fields[i].seg != reg->seg ||
+			gfx_v9_0_ras_fields[i].inst != reg->inst)
 			continue;
 
 		sec_cnt = (value &
-				gc_ras_fields_vg20[i].sec_count_mask) >>
-				gc_ras_fields_vg20[i].sec_count_shift;
+				gfx_v9_0_ras_fields[i].sec_count_mask) >>
+				gfx_v9_0_ras_fields[i].sec_count_shift;
 		if (sec_cnt) {
 			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], SEC %d\n",
-				gc_ras_fields_vg20[i].name,
+				gfx_v9_0_ras_fields[i].name,
 				se_id, inst_id,
 				sec_cnt);
 			*sec_count += sec_cnt;
 		}
 
 		ded_cnt = (value &
-				gc_ras_fields_vg20[i].ded_count_mask) >>
-				gc_ras_fields_vg20[i].ded_count_shift;
+				gfx_v9_0_ras_fields[i].ded_count_mask) >>
+				gfx_v9_0_ras_fields[i].ded_count_shift;
 		if (ded_cnt) {
 			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], DED %d\n",
-				gc_ras_fields_vg20[i].name,
+				gfx_v9_0_ras_fields[i].name,
 				se_id, inst_id,
 				ded_cnt);
 			*ded_count += ded_cnt;
@@ -6235,6 +6225,58 @@ static int __get_ras_error_count(const struct soc15_reg_entry *reg,
 	}
 
 	return 0;
+}
+
+static void gfx_v9_0_clear_ras_edc_counter(struct amdgpu_device *adev)
+{
+	int i, j, k;
+
+	/* read back registers to clear the counters */
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < ARRAY_SIZE(gfx_v9_0_edc_counter_regs); i++) {
+		for (j = 0; j < gfx_v9_0_edc_counter_regs[i].se_num; j++) {
+			for (k = 0; k < gfx_v9_0_edc_counter_regs[i].instance; k++) {
+				gfx_v9_0_select_se_sh(adev, j, 0x0, k);
+				RREG32(SOC15_REG_ENTRY_OFFSET(gfx_v9_0_edc_counter_regs[i]));
+			}
+		}
+	}
+	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, 0xe0000000);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_CNT, 0);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT, 0);
+
+	for (i = 0; i < ARRAY_SIZE(vml2_mems); i++) {
+		WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, i);
+		RREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_CNT);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vml2_walker_mems); i++) {
+		WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, i);
+		RREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_CNT);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(atc_l2_cache_2m_mems); i++) {
+		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, i);
+		RREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_CNT);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(atc_l2_cache_4k_mems); i++) {
+		WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, i);
+		RREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_CNT);
+	}
+
+	WREG32_SOC15(GC, 0, mmVM_L2_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmVM_L2_WALKER_MEM_ECC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_2M_EDC_INDEX, 255);
+	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
 }
 
 static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
@@ -6253,14 +6295,14 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 
-	for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++) {
-		for (j = 0; j < sec_ded_counter_registers[i].se_num; j++) {
-			for (k = 0; k < sec_ded_counter_registers[i].instance; k++) {
+	for (i = 0; i < ARRAY_SIZE(gfx_v9_0_edc_counter_regs); i++) {
+		for (j = 0; j < gfx_v9_0_edc_counter_regs[i].se_num; j++) {
+			for (k = 0; k < gfx_v9_0_edc_counter_regs[i].instance; k++) {
 				gfx_v9_0_select_se_sh(adev, j, 0, k);
 				reg_value =
-					RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
+					RREG32(SOC15_REG_ENTRY_OFFSET(gfx_v9_0_edc_counter_regs[i]));
 				if (reg_value)
-					__get_ras_error_count(&sec_ded_counter_registers[i],
+					gfx_v9_0_ras_error_count(&gfx_v9_0_edc_counter_regs[i],
 							j, k, reg_value,
 							&sec_count, &ded_count);
 			}
