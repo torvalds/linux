@@ -52,8 +52,8 @@ struct dummy {
  */
 static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
 {
-	void **shadow_leak = shadow_data;
-	void *leak = ctor_data;
+	int **shadow_leak = shadow_data;
+	int *leak = ctor_data;
 
 	*shadow_leak = leak;
 	return 0;
@@ -62,7 +62,7 @@ static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
 static struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
-	void *leak;
+	int *leak;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
@@ -76,7 +76,7 @@ static struct dummy *livepatch_fix1_dummy_alloc(void)
 	 * variable.  A patched dummy_free routine can later fetch this
 	 * pointer to handle resource release.
 	 */
-	leak = kzalloc(sizeof(int), GFP_KERNEL);
+	leak = kzalloc(sizeof(*leak), GFP_KERNEL);
 	if (!leak) {
 		kfree(d);
 		return NULL;
@@ -94,7 +94,7 @@ static struct dummy *livepatch_fix1_dummy_alloc(void)
 static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
 {
 	void *d = obj;
-	void **shadow_leak = shadow_data;
+	int **shadow_leak = shadow_data;
 
 	kfree(*shadow_leak);
 	pr_info("%s: dummy @ %p, prevented leak @ %p\n",
@@ -103,7 +103,7 @@ static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
 
 static void livepatch_fix1_dummy_free(struct dummy *d)
 {
-	void **shadow_leak;
+	int **shadow_leak;
 
 	/*
 	 * Patch: fetch the saved SV_LEAK shadow variable, detach and
