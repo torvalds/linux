@@ -17,13 +17,13 @@
 #include "8250.h"
 
 struct bcm2835aux_data {
-	struct uart_8250_port uart;
 	struct clk *clk;
 	int line;
 };
 
 static int bcm2835aux_serial_probe(struct platform_device *pdev)
 {
+	struct uart_8250_port up = { };
 	struct bcm2835aux_data *data;
 	struct resource *res;
 	int ret;
@@ -34,17 +34,14 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* initialize data */
-	spin_lock_init(&data->uart.port.lock);
-	data->uart.capabilities = UART_CAP_FIFO | UART_CAP_MINI;
-	data->uart.port.dev = &pdev->dev;
-	data->uart.port.regshift = 2;
-	data->uart.port.type = PORT_16550;
-	data->uart.port.iotype = UPIO_MEM;
-	data->uart.port.fifosize = 8;
-	data->uart.port.flags = UPF_SHARE_IRQ |
-				UPF_FIXED_PORT |
-				UPF_FIXED_TYPE |
-				UPF_SKIP_TEST;
+	up.capabilities = UART_CAP_FIFO | UART_CAP_MINI;
+	up.port.dev = &pdev->dev;
+	up.port.regshift = 2;
+	up.port.type = PORT_16550;
+	up.port.iotype = UPIO_MEM;
+	up.port.fifosize = 8;
+	up.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT | UPF_FIXED_TYPE |
+			UPF_SKIP_TEST;
 
 	/* get the clock - this also enables the HW */
 	data->clk = devm_clk_get(&pdev->dev, NULL);
@@ -59,7 +56,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
 		return ret;
-	data->uart.port.irq = ret;
+	up.port.irq = ret;
 
 	/* map the main registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -67,15 +64,15 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "memory resource not found");
 		return -EINVAL;
 	}
-	data->uart.port.membase = devm_ioremap_resource(&pdev->dev, res);
-	ret = PTR_ERR_OR_ZERO(data->uart.port.membase);
+	up.port.membase = devm_ioremap_resource(&pdev->dev, res);
+	ret = PTR_ERR_OR_ZERO(up.port.membase);
 	if (ret)
 		return ret;
 
 	/* Check for a fixed line number */
 	ret = of_alias_get_id(pdev->dev.of_node, "serial");
 	if (ret >= 0)
-		data->uart.port.line = ret;
+		up.port.line = ret;
 
 	/* enable the clock as a last step */
 	ret = clk_prepare_enable(data->clk);
@@ -90,10 +87,10 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	 * so we have to multiply the actual clock by 2
 	 * to get identical baudrates.
 	 */
-	data->uart.port.uartclk = clk_get_rate(data->clk) * 2;
+	up.port.uartclk = clk_get_rate(data->clk) * 2;
 
 	/* register the port */
-	ret = serial8250_register_8250_port(&data->uart);
+	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev,
