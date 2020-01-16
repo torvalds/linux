@@ -501,6 +501,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	FILE *fp;
 
 	if ((strcmp(resctrl_val, "mba") != 0) &&
+	    (strcmp(resctrl_val, "cat") != 0) &&
 	    (strcmp(resctrl_val, "cqm") != 0))
 		return -ENOENT;
 
@@ -522,7 +523,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	else
 		sprintf(controlgroup, "%s/schemata", RESCTRL_PATH);
 
-	if (!strcmp(resctrl_val, "cqm"))
+	if (!strcmp(resctrl_val, "cat") || !strcmp(resctrl_val, "cqm"))
 		sprintf(schema, "%s%d%c%s", "L3:", resource_id, '=', schemata);
 	if (strcmp(resctrl_val, "mba") == 0)
 		sprintf(schema, "%s%d%c%s", "MB:", resource_id, '=', schemata);
