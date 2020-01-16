@@ -323,7 +323,7 @@ static int felix_parse_ports_node(struct felix *felix,
 	struct device *dev = felix->ocelot.dev;
 	struct device_node *child;
 
-	for_each_child_of_node(ports_node, child) {
+	for_each_available_child_of_node(ports_node, child) {
 		phy_interface_t phy_mode;
 		u32 port;
 		int err;
