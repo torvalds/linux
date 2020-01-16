@@ -1639,7 +1639,7 @@ config FB_VT8500
 
 config FB_WM8505
 	bool "Wondermedia WM8xxx-series frame buffer support"
-	depends on (FB = y) && ARM && ARCH_VT8500
+	depends on (FB = y) && HAS_IOMEM && (ARCH_VT8500 || COMPILE_TEST)
 	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
