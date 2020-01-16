@@ -154,15 +154,6 @@ static inline void guest_exit_irqoff(void)
 }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */
 
-static inline void guest_enter(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	guest_enter_irqoff();
-	local_irq_restore(flags);
-}
-
 static inline void guest_exit(void)
 {
 	unsigned long flags;
