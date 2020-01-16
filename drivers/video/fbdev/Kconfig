@@ -1827,7 +1827,7 @@ config FB_FSL_DIU
 
 config FB_W100
 	tristate "W100 frame buffer support"
-	depends on FB && ARCH_PXA
+	depends on FB && HAS_IOMEM && (ARCH_PXA || COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
