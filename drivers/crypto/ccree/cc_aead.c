@@ -385,13 +385,13 @@ static int validate_keys_sizes(struct cc_aead_ctx *ctx)
 			return -EINVAL;
 		break;
 	default:
-		dev_err(dev, "Invalid auth_mode=%d\n", ctx->auth_mode);
+		dev_dbg(dev, "Invalid auth_mode=%d\n", ctx->auth_mode);
 		return -EINVAL;
 	}
 	/* Check cipher key size */
 	if (ctx->flow_mode == S_DIN_to_DES) {
 		if (ctx->enc_keylen != DES3_EDE_KEY_SIZE) {
-			dev_err(dev, "Invalid cipher(3DES) key size: %u\n",
+			dev_dbg(dev, "Invalid cipher(3DES) key size: %u\n",
 				ctx->enc_keylen);
 			return -EINVAL;
 		}
@@ -399,7 +399,7 @@ static int validate_keys_sizes(struct cc_aead_ctx *ctx)
 		if (ctx->enc_keylen != AES_KEYSIZE_128 &&
 		    ctx->enc_keylen != AES_KEYSIZE_192 &&
 		    ctx->enc_keylen != AES_KEYSIZE_256) {
-			dev_err(dev, "Invalid cipher(AES) key size: %u\n",
+			dev_dbg(dev, "Invalid cipher(AES) key size: %u\n",
 				ctx->enc_keylen);
 			return -EINVAL;
 		}
@@ -1559,7 +1559,7 @@ static int config_ccm_adata(struct aead_request *req)
 	/* taken from crypto/ccm.c */
 	/* 2 <= L <= 8, so 1 <= L' <= 7. */
 	if (l < 2 || l > 8) {
-		dev_err(dev, "illegal iv value %X\n", req->iv[0]);
+		dev_dbg(dev, "illegal iv value %X\n", req->iv[0]);
 		return -EINVAL;
 	}
 	memcpy(b0, req->iv, AES_BLOCK_SIZE);
@@ -2056,7 +2056,7 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2106,7 +2106,7 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2225,7 +2225,7 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2256,7 +2256,7 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2290,7 +2290,7 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2321,7 +2321,7 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
