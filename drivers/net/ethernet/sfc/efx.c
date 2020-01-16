@@ -27,7 +27,6 @@
 #include "efx_channels.h"
 #include "rx_common.h"
 #include "tx_common.h"
-#include "rx_common.h"
 #include "nic.h"
 #include "io.h"
 #include "selftest.h"
