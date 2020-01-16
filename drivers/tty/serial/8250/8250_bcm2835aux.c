@@ -50,7 +50,8 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	ret = PTR_ERR_OR_ZERO(data->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "could not get clk: %d\n", ret);
 		return ret;
 	}
 
