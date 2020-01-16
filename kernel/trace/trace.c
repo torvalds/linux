@@ -866,10 +866,13 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.array_buffer.buffer;
+	ring_buffer_nest_start(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
 					    irq_flags, pc);
-	if (!event)
-		return 0;
+	if (!event) {
+		size = 0;
+		goto out;
+	}
 
 	entry = ring_buffer_event_data(event);
 	entry->ip = ip;
@@ -885,7 +888,8 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 
 	__buffer_unlock_commit(buffer, event);
 	ftrace_trace_stack(&global_trace, buffer, irq_flags, 4, pc, NULL);
-
+ out:
+	ring_buffer_nest_end(buffer);
 	return size;
 }
 EXPORT_SYMBOL_GPL(__trace_puts);
@@ -902,6 +906,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	struct bputs_entry *entry;
 	unsigned long irq_flags;
 	int size = sizeof(struct bputs_entry);
+	int ret = 0;
 	int pc;
 
 	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
@@ -914,10 +919,12 @@ int __trace_bputs(unsigned long ip, const char *str)
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.array_buffer.buffer;
+
+	ring_buffer_nest_start(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
 					    irq_flags, pc);
 	if (!event)
-		return 0;
+		goto out;
 
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
@@ -926,7 +933,10 @@ int __trace_bputs(unsigned long ip, const char *str)
 	__buffer_unlock_commit(buffer, event);
 	ftrace_trace_stack(&global_trace, buffer, irq_flags, 4, pc, NULL);
 
-	return 1;
+	ret = 1;
+ out:
+	ring_buffer_nest_end(buffer);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__trace_bputs);
 
@@ -3225,6 +3235,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	local_save_flags(flags);
 	size = sizeof(*entry) + sizeof(u32) * len;
 	buffer = tr->array_buffer.buffer;
+	ring_buffer_nest_start(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_BPRINT, size,
 					    flags, pc);
 	if (!event)
@@ -3240,6 +3251,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	}
 
 out:
+	ring_buffer_nest_end(buffer);
 	put_trace_buf();
 
 out_nobuffer:
@@ -3282,6 +3294,7 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 
 	local_save_flags(flags);
 	size = sizeof(*entry) + len + 1;
+	ring_buffer_nest_start(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					    flags, pc);
 	if (!event)
@@ -3296,6 +3309,7 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	}
 
 out:
+	ring_buffer_nest_end(buffer);
 	put_trace_buf();
 
 out_nobuffer:
