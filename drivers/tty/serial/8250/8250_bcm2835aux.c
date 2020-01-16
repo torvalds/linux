@@ -16,6 +16,11 @@
 
 #include "8250.h"
 
+/**
+ * struct bcm2835aux_data - driver private data of BCM2835 auxiliary UART
+ * @clk: clock producer of the port's uartclk
+ * @line: index of the port's serial8250_ports[] entry
+ */
 struct bcm2835aux_data {
 	struct clk *clk;
 	int line;
