@@ -1461,6 +1461,9 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
+	if (!hdmi)
+		return;
+
 	dw_hdmi_suspend(hdmi->hdmi);
 	pm_runtime_put_sync(&pdev->dev);
 }
