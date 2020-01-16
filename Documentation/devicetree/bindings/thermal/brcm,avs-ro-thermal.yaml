@@ -23,12 +23,15 @@ properties:
   compatible:
     const: brcm,bcm2711-thermal
 
-  reg:
-    maxItems: 1
+  # See ./thermal.txt for details
+  "#thermal-sensor-cells":
+    const: 0
 
 required:
   - compatible
-  - reg
+  - '#thermal-sensor-cells'
+
+additionalProperties: false
 
 examples:
   - |
