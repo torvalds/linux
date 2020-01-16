@@ -40,7 +40,7 @@ The ``mlxsw`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
 Info versions
 =============
 
-The ``mlx5`` driver reports the following versions
+The ``mlxsw`` driver reports the following versions
 
 .. list-table:: devlink info versions implemented
    :widths: 5 5 90
