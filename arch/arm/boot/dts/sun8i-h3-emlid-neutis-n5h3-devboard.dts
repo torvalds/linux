@@ -1,30 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-// Copyright (C) 2018 Aleksandr Aleksandrov <aleksandr.aleksandrov@emlid.com>
-
 /*
  * DTS for Emlid Neutis N5 Dev board.
+ *
+ * Copyright (C) 2019 Georgii Staroselskii <georgiii.staroselskii@emlid.com>
  */
 
 /dts-v1/;
 
-#include "sun50i-h5-emlid-neutis-n5.dtsi"
+#include "sun8i-h3-emlid-neutis-n5h3.dtsi"
 
 / {
-	model = "Emlid Neutis N5 Developer board";
-	compatible = "emlid,neutis-n5-devboard",
-		     "emlid,neutis-n5",
-		     "allwinner,sun50i-h5";
-
-	connector {
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi_con_in: endpoint {
-				remote-endpoint = <&hdmi_out_con>;
-			};
-		};
-	};
+	model = "Emlid Neutis N5H3 Developer board";
+	compatible = "emlid,neutis-n5h3-devboard",
+		     "emlid,neutis-n5h3",
+		     "allwinner,sun8i-h3";
 
 	vdd_cpux: gpio-regulator {
 		compatible = "regulator-gpio";
@@ -37,8 +26,20 @@
 		regulator-ramp-delay = <50>; /* 4ms */
 		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
 		gpios-states = <0x1>;
-		states = <1100000 0>, <1300000 1>;
+		states = <1100000 0x0>, <1300000 0x1>;
 	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 };
 
 &cpu0 {

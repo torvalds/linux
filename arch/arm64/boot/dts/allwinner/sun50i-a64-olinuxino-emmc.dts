@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2018 Martin Ayotte <martinayotte@gmail.com>
- * Copyright (C) 2019 Sunil Mohan Adapa <sunil@medhas.org>
- */
+// Copyright (C) 2018 Martin Ayotte <martinayotte@gmail.com>
+// Copyright (C) 2019 Sunil Mohan Adapa <sunil@medhas.org>
 
 #include "sun50i-a64-olinuxino.dts"
 
@@ -20,4 +18,8 @@
 	non-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
+};
+
+&pio {
+	vcc-pc-supply = <&reg_eldo1>;
 };

@@ -1,13 +1,11 @@
-/*
- * Copyright (C) Harald Geyer <harald@ccbib.org>
- * based on sun50i-a64-olinuxino.dts by Jagan Teki <jteki@openedev.com>
- *
- * SPDX-License-Identifier: (GPL-2.0 OR MIT)
- */
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// Copyright (C) Harald Geyer <harald@ccbib.org>
+// based on sun50i-a64-olinuxino.dts by Jagan Teki <jteki@openedev.com>
 
 /dts-v1/;
 
 #include "sun50i-a64.dtsi"
+#include "sun50i-a64-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -102,6 +100,22 @@
 
 &de {
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu1 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu2 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu3 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &ehci1 {
