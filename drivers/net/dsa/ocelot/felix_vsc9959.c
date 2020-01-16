@@ -892,7 +892,6 @@ static void vsc9959_pcs_link_state_usxgmii(struct phy_device *pcs,
 		break;
 	}
 
-	pcs->link = USXGMII_LPA_LNKS(lpa);
 	if (USXGMII_LPA_DUPLEX(lpa))
 		pcs->duplex = DUPLEX_FULL;
 	else
