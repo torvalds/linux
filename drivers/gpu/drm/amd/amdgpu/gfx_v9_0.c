@@ -48,6 +48,8 @@
 
 #include "amdgpu_ras.h"
 
+#include "gfx_v9_4.h"
+
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
@@ -1950,6 +1952,17 @@ static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.query_ras_error_count = &gfx_v9_0_query_ras_error_count
 };
 
+static const struct amdgpu_gfx_funcs gfx_v9_4_gfx_funcs = {
+	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
+	.select_se_sh = &gfx_v9_0_select_se_sh,
+	.read_wave_data = &gfx_v9_0_read_wave_data,
+	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
+	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
+	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
+	.ras_error_inject = &gfx_v9_4_ras_error_inject,
+	.query_ras_error_count = &gfx_v9_4_query_ras_error_count
+};
+
 static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
@@ -2001,6 +2014,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_ARCTURUS:
+		adev->gfx.funcs = &gfx_v9_4_gfx_funcs;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -4265,7 +4279,17 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 		goto fail;
 	}
 
-	gfx_v9_0_clear_ras_edc_counter(adev);
+	switch (adev->asic_type)
+	{
+	case CHIP_VEGA20:
+		gfx_v9_0_clear_ras_edc_counter(adev);
+		break;
+	case CHIP_ARCTURUS:
+		gfx_v9_4_clear_ras_edc_counter(adev);
+		break;
+	default:
+		break;
+	}
 
 fail:
 	amdgpu_ib_free(adev, &ib, NULL);
