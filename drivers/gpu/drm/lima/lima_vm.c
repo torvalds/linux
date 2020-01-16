@@ -277,3 +277,45 @@ void lima_vm_print(struct lima_vm *vm)
 		}
 	}
 }
+
+int lima_vm_map_bo(struct lima_vm *vm, struct lima_bo *bo, int pageoff)
+{
+	struct lima_bo_va *bo_va;
+	struct sg_dma_page_iter sg_iter;
+	int offset = 0, err;
+	u32 base;
+
+	mutex_lock(&bo->lock);
+
+	bo_va = lima_vm_bo_find(vm, bo);
+	if (!bo_va) {
+		err = -ENOENT;
+		goto err_out0;
+	}
+
+	mutex_lock(&vm->lock);
+
+	base = bo_va->node.start + (pageoff << PAGE_SHIFT);
+	for_each_sg_dma_page(bo->base.sgt->sgl, &sg_iter,
+			     bo->base.sgt->nents, pageoff) {
+		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
+				       base + offset);
+		if (err)
+			goto err_out1;
+
+		offset += PAGE_SIZE;
+	}
+
+	mutex_unlock(&vm->lock);
+
+	mutex_unlock(&bo->lock);
+	return 0;
+
+err_out1:
+	if (offset)
+		lima_vm_unmap_range(vm, base, base + offset - 1);
+	mutex_unlock(&vm->lock);
+err_out0:
+	mutex_unlock(&bo->lock);
+	return err;
+}
