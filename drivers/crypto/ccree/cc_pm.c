@@ -73,17 +73,14 @@ int cc_pm_get(struct device *dev)
 	return (rc == 1 ? 0 : rc);
 }
 
-int cc_pm_put_suspend(struct device *dev)
+void cc_pm_put_suspend(struct device *dev)
 {
-	int rc = 0;
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	if (drvdata->pm_on) {
 		pm_runtime_mark_last_busy(dev);
-		rc = pm_runtime_put_autosuspend(dev);
+		pm_runtime_put_autosuspend(dev);
 	}
-
-	return rc;
 }
 
 bool cc_pm_is_dev_suspended(struct device *dev)
