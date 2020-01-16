@@ -19,6 +19,16 @@
 
 #define NVMET_TCP_DEF_INLINE_DATA_SIZE	(4 * PAGE_SIZE)
 
+/* Define the socket priority to use for connections were it is desirable
+ * that the NIC consider performing optimized packet processing or filtering.
+ * A non-zero value being sufficient to indicate general consideration of any
+ * possible optimization.  Making it a module param allows for alternative
+ * values that may be unique for some NIC implementations.
+ */
+static int so_priority;
+module_param(so_priority, int, 0644);
+MODULE_PARM_DESC(so_priority, "nvmet tcp socket optimize priority");
+
 #define NVMET_TCP_RECV_BUDGET		8
 #define NVMET_TCP_SEND_BUDGET		8
 #define NVMET_TCP_IO_WORK_BUDGET	64
@@ -1433,6 +1443,13 @@ static int nvmet_tcp_set_queue_sock(struct nvmet_tcp_queue *queue)
 	if (ret)
 		return ret;
 
+	if (so_priority > 0) {
+		ret = kernel_setsockopt(sock, SOL_SOCKET, SO_PRIORITY,
+				(char *)&so_priority, sizeof(so_priority));
+		if (ret)
+			return ret;
+	}
+
 	/* Set socket type of service */
 	if (inet->rcv_tos > 0) {
 		int tos = inet->rcv_tos;
@@ -1620,6 +1637,15 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 	if (ret) {
 		pr_err("failed to set SO_REUSEADDR sock opt %d\n", ret);
 		goto err_sock;
+	}
+
+	if (so_priority > 0) {
+		ret = kernel_setsockopt(port->sock, SOL_SOCKET, SO_PRIORITY,
+				(char *)&so_priority, sizeof(so_priority));
+		if (ret) {
+			pr_err("failed to set SO_PRIORITY sock opt %d\n", ret);
+			goto err_sock;
+		}
 	}
 
 	ret = kernel_bind(port->sock, (struct sockaddr *)&port->addr,
