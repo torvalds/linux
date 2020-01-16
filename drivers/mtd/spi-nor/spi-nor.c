@@ -2124,6 +2124,8 @@ static int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor)
 	if (nor->bouncebuf[0] & SR2_QUAD_EN_BIT1)
 		return 0;
 
+	nor->bouncebuf[0] |= SR2_QUAD_EN_BIT1;
+
 	return spi_nor_write_16bit_cr_and_check(nor, nor->bouncebuf[0]);
 }
 
