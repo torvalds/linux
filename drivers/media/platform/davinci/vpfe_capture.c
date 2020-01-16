@@ -880,7 +880,7 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	pix_fmt = vpfe_lookup_pix_format(pix);
 	if (pix_fmt) {
-		fmt->pixelformat = fmt->pixelformat;
+		fmt->pixelformat = pix_fmt->pixelformat;
 		return 0;
 	}
 	return -EINVAL;
