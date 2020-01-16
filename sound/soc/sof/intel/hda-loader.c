@@ -329,13 +329,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		if (!ret)
 			break;
 
-		dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
+		dev_dbg(sdev->dev, "iteration %d of Core En/ROM load failed: %d\n",
+			i, ret);
+		dev_dbg(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_ERROR),
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_STATUS));
-		dev_err(sdev->dev, "error: iteration %d of Core En/ROM load failed: %d\n",
-			i, ret);
 	}
 
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
