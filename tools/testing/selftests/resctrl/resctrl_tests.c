@@ -13,6 +13,27 @@
 #define BENCHMARK_ARGS		64
 #define BENCHMARK_ARG_SIZE	64
 
+bool is_amd;
+
+void detect_amd(void)
+{
+	FILE *inf = fopen("/proc/cpuinfo", "r");
+	char *res;
+
+	if (!inf)
+		return;
+
+	res = fgrep(inf, "vendor_id");
+
+	if (res) {
+		char *s = strchr(res, ':');
+
+		is_amd = s && !strcmp(s, ": AuthenticAMD\n");
+		free(res);
+	}
+	fclose(inf);
+}
+
 static void cmd_help(void)
 {
 	printf("usage: resctrl_tests [-h] [-b \"benchmark_cmd [options]\"] [-t test list] [-n no_of_bits]\n");
@@ -106,6 +127,9 @@ int main(int argc, char **argv)
 	 */
 	if (geteuid() != 0)
 		printf("# WARNING: not running as root, tests may fail.\n");
+
+	/* Detect AMD vendor */
+	detect_amd();
 
 	if (has_ben) {
 		/* Extract benchmark command from command line. */

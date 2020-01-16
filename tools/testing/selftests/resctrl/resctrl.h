@@ -66,6 +66,7 @@ pid_t bm_pid, ppid;
 int tests_run;
 
 char llc_occup_path[1024];
+bool is_amd;
 
 bool check_resctrlfs_support(void);
 int filter_dmesg(void);
