@@ -66,6 +66,7 @@ static struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
 	int *leak;
+	int **shadow_leak;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
@@ -80,18 +81,27 @@ static struct dummy *livepatch_fix1_dummy_alloc(void)
 	 * pointer to handle resource release.
 	 */
 	leak = kzalloc(sizeof(*leak), GFP_KERNEL);
-	if (!leak) {
-		kfree(d);
-		return NULL;
-	}
+	if (!leak)
+		goto err_leak;
 
-	klp_shadow_alloc(d, SV_LEAK, sizeof(leak), GFP_KERNEL,
-			 shadow_leak_ctor, &leak);
+	shadow_leak = klp_shadow_alloc(d, SV_LEAK, sizeof(leak), GFP_KERNEL,
+				       shadow_leak_ctor, &leak);
+	if (!shadow_leak) {
+		pr_err("%s: failed to allocate shadow variable for the leaking pointer: dummy @ %p, leak @ %p\n",
+		       __func__, d, leak);
+		goto err_shadow;
+	}
 
 	pr_info("%s: dummy @ %p, expires @ %lx\n",
 		__func__, d, d->jiffies_expire);
 
 	return d;
+
+err_shadow:
+	kfree(leak);
+err_leak:
+	kfree(d);
+	return NULL;
 }
 
 static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
