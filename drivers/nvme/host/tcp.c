@@ -20,6 +20,16 @@
 
 struct nvme_tcp_queue;
 
+/* Define the socket priority to use for connections were it is desirable
+ * that the NIC consider performing optimized packet processing or filtering.
+ * A non-zero value being sufficient to indicate general consideration of any
+ * possible optimization.  Making it a module param allows for alternative
+ * values that may be unique for some NIC implementations.
+ */
+static int so_priority;
+module_param(so_priority, int, 0644);
+MODULE_PARM_DESC(so_priority, "nvme tcp socket optimize priority");
+
 enum nvme_tcp_send_state {
 	NVME_TCP_SEND_CMD_PDU = 0,
 	NVME_TCP_SEND_H2C_PDU,
@@ -1307,6 +1317,17 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 		dev_err(nctrl->device,
 			"failed to set SO_LINGER sock opt %d\n", ret);
 		goto err_sock;
+	}
+
+	if (so_priority > 0) {
+		ret = kernel_setsockopt(queue->sock, SOL_SOCKET, SO_PRIORITY,
+				(char *)&so_priority, sizeof(so_priority));
+		if (ret) {
+			dev_err(ctrl->ctrl.device,
+				"failed to set SO_PRIORITY sock opt, ret %d\n",
+				ret);
+			goto err_sock;
+		}
 	}
 
 	/* Set socket type of service */
