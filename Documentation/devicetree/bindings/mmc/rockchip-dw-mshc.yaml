@@ -35,6 +35,8 @@ properties:
             - rockchip,rk3036-dw-mshc
             # for Rockchip RK322x
             - rockchip,rk3228-dw-mshc
+            # for Rockchip RK3308
+            - rockchip,rk3308-dw-mshc
             # for Rockchip RK3328
             - rockchip,rk3328-dw-mshc
             # for Rockchip RK3368
