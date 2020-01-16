@@ -42,17 +42,19 @@ static void dmub_psr_get_state(uint32_t *psr_state)
 	// Trigger GPINT interrupt from firmware
 }
 
-static void dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *stream)
+/**
+ * Set PSR version.
+ */
+static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *stream)
 {
-	//stream->psr_version;
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
 
 	cmd.psr_set_version.header.type = DMUB_CMD__PSR;
 	cmd.psr_set_version.header.sub_type = DMUB_CMD__PSR_SET_VERSION;
 
-	if (stream->psr_version == 0x0)
-		return;
+	if (stream->psr_version == 0x0) // Unsupported
+		return false;
 	else if (stream->psr_version == 0x1)
 		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_1;
 	else if (stream->psr_version == 0x2)
@@ -63,6 +65,8 @@ static void dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_enable.header);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
+	return true;
 }
 
 /**
@@ -139,6 +143,10 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	if (!pipe_ctx || !&pipe_ctx->plane_res || !&pipe_ctx->stream_res)
 		return false;
 
+	// First, set the psr version
+	if (!dmub_psr_set_version(dmub, pipe_ctx->stream))
+		return false;
+
 	// Program DP DPHY fast training registers
 	link->link_enc->funcs->psr_program_dp_dphy_fast_training(link->link_enc,
 			psr_context->psrExitLinkTrainingRequired);
@@ -186,7 +194,6 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 }
 
 static const struct dmub_psr_funcs psr_funcs = {
-	.psr_set_version		= dmub_psr_set_version,
 	.psr_copy_settings		= dmub_psr_copy_settings,
 	.psr_enable			= dmub_psr_enable,
 	.psr_get_state			= dmub_psr_get_state,

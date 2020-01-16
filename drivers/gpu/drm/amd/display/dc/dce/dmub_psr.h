@@ -34,7 +34,6 @@ struct dmub_psr {
 };
 
 struct dmub_psr_funcs {
-	void (*psr_set_version)(struct dmub_psr *dmub, struct dc_stream_state *stream);
 	bool (*psr_copy_settings)(struct dmub_psr *dmub, struct dc_link *link, struct psr_context *psr_context);
 	void (*psr_enable)(struct dmub_psr *dmub, bool enable);
 	void (*psr_get_state)(uint32_t *psr_state);
