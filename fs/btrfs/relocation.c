@@ -24,6 +24,53 @@
 #include "block-group.h"
 
 /*
+ * Relocation overview
+ *
+ * [What does relocation do]
+ *
+ * The objective of relocation is to relocate all extents of the target block
+ * group to other block groups.
+ * This is utilized by resize (shrink only), profile converting, compacting
+ * space, or balance routine to spread chunks over devices.
+ *
+ * 		Before		|		After
+ * ------------------------------------------------------------------
+ *  BG A: 10 data extents	| BG A: deleted
+ *  BG B:  2 data extents	| BG B: 10 data extents (2 old + 8 relocated)
+ *  BG C:  1 extents		| BG C:  3 data extents (1 old + 2 relocated)
+ *
+ * [How does relocation work]
+ *
+ * 1.   Mark the target block group read-only
+ *      New extents won't be allocated from the target block group.
+ *
+ * 2.1  Record each extent in the target block group
+ *      To build a proper map of extents to be relocated.
+ *
+ * 2.2  Build data reloc tree and reloc trees
+ *      Data reloc tree will contain an inode, recording all newly relocated
+ *      data extents.
+ *      There will be only one data reloc tree for one data block group.
+ *
+ *      Reloc tree will be a special snapshot of its source tree, containing
+ *      relocated tree blocks.
+ *      Each tree referring to a tree block in target block group will get its
+ *      reloc tree built.
+ *
+ * 2.3  Swap source tree with its corresponding reloc tree
+ *      Each involved tree only refers to new extents after swap.
+ *
+ * 3.   Cleanup reloc trees and data reloc tree.
+ *      As old extents in the target block group are still referenced by reloc
+ *      trees, we need to clean them up before really freeing the target block
+ *      group.
+ *
+ * The main complexity is in steps 2.2 and 2.3.
+ *
+ * The entry point of relocation is relocate_block_group() function.
+ */
+
+/*
  * backref_node, mapping_node and tree_block start with this
  */
 struct tree_entry {
