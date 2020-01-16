@@ -29,7 +29,12 @@
 	IBA_FIELD_MLOC(field_struct,                                           \
 		       (byte_offset + sizeof(struct ib_mad_hdr)), width, type)
 #define CM_STRUCT(field_struct, total_len)                                     \
-	static_assert((total_len) % 32 == 0);
+	field_struct                                                           \
+	{                                                                      \
+		struct ib_mad_hdr hdr;                                         \
+		u32 _data[(total_len) / 32 +                                   \
+			  BUILD_BUG_ON_ZERO((total_len) % 32 != 0)];           \
+	}
 
 /* Table 106 REQ Message Contents */
 #define CM_REQ_LOCAL_COMM_ID CM_FIELD32_LOC(struct cm_req_msg, 0, 32)
