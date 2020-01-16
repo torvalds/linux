@@ -95,7 +95,6 @@
 #define CP_RB_DOORBELL_RANGE_LOWER__DOORBELL_RANGE_LOWER_Sienna_Cichlid_MASK	0x00000FFCL
 #define CP_RB_DOORBELL_RANGE_LOWER__DOORBELL_RANGE_LOWER_Sienna_Cichlid__SHIFT	0x2
 #define CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_Sienna_Cichlid_MASK	0x00000FFCL
-#define PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_Sienna_Cichlid_MASK	0x00300000L
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid			0x1580
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid_BASE_IDX	0
 
@@ -4468,6 +4467,11 @@ static u32 gfx_v10_0_init_pa_sc_tile_steering_override(struct amdgpu_device *ade
 	uint32_t num_packer_per_sc;
 	uint32_t pa_sc_tile_steering_override;
 
+	/* for ASICs that integrates GFX v10.3
+	 * pa_sc_tile_steering_override should be set to 0 */
+	if (adev->asic_type == CHIP_SIENNA_CICHLID)
+		return 0;
+
 	/* init num_sc */
 	num_sc = adev->gfx.config.max_shader_engines * adev->gfx.config.max_sh_per_se *
 			adev->gfx.config.num_sc_per_sh;
@@ -4485,18 +4489,9 @@ static u32 gfx_v10_0_init_pa_sc_tile_steering_override(struct amdgpu_device *ade
 	pa_sc_tile_steering_override |=
 		(order_base_2(num_rb_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SC__SHIFT) &
 		PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SC_MASK;
-	switch (adev->asic_type) {
-	case CHIP_SIENNA_CICHLID:
-		pa_sc_tile_steering_override |=
-			(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
-			PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_Sienna_Cichlid_MASK;
-		break;
-	default:
-		pa_sc_tile_steering_override |=
-			(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
-			PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK;
-		break;
-	}
+	pa_sc_tile_steering_override |=
+		(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
+		PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK;
 
 	return pa_sc_tile_steering_override;
 }
