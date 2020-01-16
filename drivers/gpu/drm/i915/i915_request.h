@@ -91,6 +91,13 @@ enum {
 	I915_FENCE_FLAG_SIGNAL,
 
 	/*
+	 * I915_FENCE_FLAG_HOLD - this request is currently on hold
+	 *
+	 * This request has been suspended, pending an ongoing investigation.
+	 */
+	I915_FENCE_FLAG_HOLD,
+
+	/*
 	 * I915_FENCE_FLAG_NOPREEMPT - this request should not be preempted
 	 *
 	 * The execution of some requests should not be interrupted. This is
@@ -471,6 +478,27 @@ static inline bool i915_request_is_running(const struct i915_request *rq)
 	return __i915_request_has_started(rq);
 }
 
+/**
+ * i915_request_is_running - check if the request is ready for execution
+ * @rq: the request
+ *
+ * Upon construction, the request is instructed to wait upon various
+ * signals before it is ready to be executed by the HW. That is, we do
+ * not want to start execution and read data before it is written. In practice,
+ * this is controlled with a mixture of interrupts and semaphores. Once
+ * the submit fence is completed, the backend scheduler will place the
+ * request into its queue and from there submit it for execution. So we
+ * can detect when a request is eligible for execution (and is under control
+ * of the scheduler) by querying where it is in any of the scheduler's lists.
+ *
+ * Returns true if the request is ready for execution (it may be inflight),
+ * false otherwise.
+ */
+static inline bool i915_request_is_ready(const struct i915_request *rq)
+{
+	return !list_empty(&rq->sched.link);
+}
+
 static inline bool i915_request_completed(const struct i915_request *rq)
 {
 	if (i915_request_signaled(rq))
@@ -498,6 +526,21 @@ static inline bool i915_request_has_nopreempt(const struct i915_request *rq)
 static inline bool i915_request_has_sentinel(const struct i915_request *rq)
 {
 	return unlikely(test_bit(I915_FENCE_FLAG_SENTINEL, &rq->fence.flags));
+}
+
+static inline bool i915_request_on_hold(const struct i915_request *rq)
+{
+	return unlikely(test_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags));
+}
+
+static inline void i915_request_set_hold(struct i915_request *rq)
+{
+	set_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
+}
+
+static inline void i915_request_clear_hold(struct i915_request *rq)
+{
+	clear_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
 }
 
 static inline struct intel_timeline *
