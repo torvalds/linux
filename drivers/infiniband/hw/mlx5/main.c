@@ -3276,12 +3276,14 @@ static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_flow_namespace *ns,
 					   int num_entries, int num_groups,
 					   u32 flags)
 {
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
 
-	ft = mlx5_create_auto_grouped_flow_table(ns, priority,
-						 num_entries,
-						 num_groups,
-						 0, flags);
+	ft_attr.prio = priority;
+	ft_attr.max_fte = num_entries;
+	ft_attr.flags = flags;
+	ft_attr.autogroup.max_num_groups = num_groups;
+	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft))
 		return ERR_CAST(ft);
 

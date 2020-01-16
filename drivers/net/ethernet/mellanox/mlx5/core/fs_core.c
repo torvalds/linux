@@ -1103,31 +1103,22 @@ EXPORT_SYMBOL(mlx5_create_lag_demux_flow_table);
 
 struct mlx5_flow_table*
 mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
-				    int prio,
-				    int num_flow_table_entries,
-				    int max_num_groups,
-				    u32 level,
-				    u32 flags)
+				    struct mlx5_flow_table_attr *ft_attr)
 {
-	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
 
-	if (max_num_groups > num_flow_table_entries)
+	if (ft_attr->autogroup.max_num_groups > ft_attr->max_fte)
 		return ERR_PTR(-EINVAL);
 
-	ft_attr.max_fte = num_flow_table_entries;
-	ft_attr.prio    = prio;
-	ft_attr.level   = level;
-	ft_attr.flags   = flags;
-
-	ft = mlx5_create_flow_table(ns, &ft_attr);
+	ft = mlx5_create_flow_table(ns, ft_attr);
 	if (IS_ERR(ft))
 		return ft;
 
 	ft->autogroup.active = true;
-	ft->autogroup.required_groups = max_num_groups;
+	ft->autogroup.required_groups = ft_attr->autogroup.max_num_groups;
 	/* We save place for flow groups in addition to max types */
-	ft->autogroup.group_size = ft->max_fte / (max_num_groups + 1);
+	ft->autogroup.group_size = ft->max_fte /
+				   (ft->autogroup.required_groups + 1);
 
 	return ft;
 }

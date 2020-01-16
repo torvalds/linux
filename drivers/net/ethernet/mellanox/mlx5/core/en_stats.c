@@ -1133,6 +1133,7 @@ static void mlx5e_grp_per_port_buffer_congest_update_stats(struct mlx5e_priv *pr
 static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
 	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
+	{ "rx_prio%d_discards", PPORT_PER_PRIO_OFF(rx_discards) },
 	{ "tx_prio%d_bytes", PPORT_PER_PRIO_OFF(tx_octets) },
 	{ "tx_prio%d_packets", PPORT_PER_PRIO_OFF(tx_frames) },
 };
