@@ -222,8 +222,12 @@ static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 	 * specification in incoming pause frames.
 	 */
 	mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(state->speed);
-	if (state->pause & MLO_PAUSE_RX)
-		mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
+	/* handle Rx pause in all cases, with 2500base-X this is used for rate
+	 * adaptation.
+	 */
+	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
 	if (state->pause & MLO_PAUSE_TX)
 		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
 			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
