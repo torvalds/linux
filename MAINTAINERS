@@ -5208,6 +5208,12 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tve200/
 
+DRM DRIVER FOR FEIXIN K101 IM2BA02 MIPI-DSI LCD PANELS
+M:	Icenowy Zheng <icenowy@aosc.io>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-feixin-k101-im2ba02.c
+F:	Documentation/devicetree/bindings/display/panel/feixin,k101-im2ba02.yaml
+
 DRM DRIVER FOR FEIYANG FY07024DI26A30-D MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
