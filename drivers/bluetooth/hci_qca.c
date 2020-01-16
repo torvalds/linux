@@ -1569,12 +1569,7 @@ retry:
 		return ret;
 
 	if (qca_is_wcn399x(soc_type)) {
-		/* Enable NON_PERSISTENT_SETUP QUIRK to ensure to execute
-		 * setup for every hci up.
-		 */
-		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
 		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
-		hu->hdev->shutdown = qca_power_off;
 
 		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
@@ -1813,6 +1808,7 @@ static int qca_init_regulators(struct qca_power *qca,
 static int qca_serdev_probe(struct serdev_device *serdev)
 {
 	struct qca_serdev *qcadev;
+	struct hci_dev *hdev;
 	const struct qca_vreg_data *data;
 	int err;
 
@@ -1838,7 +1834,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 					  data->num_vregs);
 		if (err) {
 			BT_ERR("Failed to init regulators:%d", err);
-			goto out;
+			return err;
 		}
 
 		qcadev->bt_power->vregs_on = false;
@@ -1851,7 +1847,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		err = hci_uart_register_device(&qcadev->serdev_hu, &qca_proto);
 		if (err) {
 			BT_ERR("wcn3990 serdev registration failed");
-			goto out;
+			return err;
 		}
 	} else {
 		qcadev->btsoc_type = QCA_ROME;
@@ -1877,12 +1873,18 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			return err;
 
 		err = hci_uart_register_device(&qcadev->serdev_hu, &qca_proto);
-		if (err)
+		if (err) {
+			BT_ERR("Rome serdev registration failed");
 			clk_disable_unprepare(qcadev->susclk);
+			return err;
+		}
 	}
 
-out:	return err;
+	hdev = qcadev->serdev_hu.hdev;
+	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	hdev->shutdown = qca_power_off;
 
+	return 0;
 }
 
 static void qca_serdev_remove(struct serdev_device *serdev)
