@@ -485,21 +485,6 @@
 &i2c9 {
 	status = "okay";
 
-	ir35221@42 {
-		compatible = "infineon,ir35221";
-		reg = <0x42>;
-	};
-
-	ir35221@43 {
-		compatible = "infineon,ir35221";
-		reg = <0x43>;
-	};
-
-	ir35221@44 {
-		compatible = "infineon,ir35221";
-		reg = <0x44>;
-	};
-
 	tmp423a@4c {
 		compatible = "ti,tmp423";
 		reg = <0x4c>;
@@ -508,21 +493,6 @@
 	tmp423b@4d {
 		compatible = "ti,tmp423";
 		reg = <0x4d>;
-	};
-
-	ir35221@72 {
-		compatible = "infineon,ir35221";
-		reg = <0x72>;
-	};
-
-	ir35221@73 {
-		compatible = "infineon,ir35221";
-		reg = <0x73>;
-	};
-
-	ir35221@74 {
-		compatible = "infineon,ir35221";
-		reg = <0x74>;
 	};
 
 	eeprom@50 {
@@ -534,21 +504,6 @@
 &i2c10 {
 	status = "okay";
 
-	ir35221@42 {
-		compatible = "infineon,ir35221";
-		reg = <0x42>;
-	};
-
-	ir35221@43 {
-		compatible = "infineon,ir35221";
-		reg = <0x43>;
-	};
-
-	ir35221@44 {
-		compatible = "infineon,ir35221";
-		reg = <0x44>;
-	};
-
 	tmp423a@4c {
 		compatible = "ti,tmp423";
 		reg = <0x4c>;
@@ -557,21 +512,6 @@
 	tmp423b@4d {
 		compatible = "ti,tmp423";
 		reg = <0x4d>;
-	};
-
-	ir35221@72 {
-		compatible = "infineon,ir35221";
-		reg = <0x72>;
-	};
-
-	ir35221@73 {
-		compatible = "infineon,ir35221";
-		reg = <0x73>;
-	};
-
-	ir35221@74 {
-		compatible = "infineon,ir35221";
-		reg = <0x74>;
 	};
 
 	eeprom@50 {
