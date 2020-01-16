@@ -24,6 +24,9 @@ static void inv_scan_query_mpu6050(struct iio_dev *indio_dev)
 			 indio_dev->active_scan_mask) ||
 		test_bit(INV_MPU6050_SCAN_ACCL_Z,
 			 indio_dev->active_scan_mask);
+
+	st->chip_config.temp_fifo_enable =
+		test_bit(INV_MPU6050_SCAN_TEMP, indio_dev->active_scan_mask);
 }
 
 static void inv_scan_query_mpu9x50(struct iio_dev *indio_dev)
