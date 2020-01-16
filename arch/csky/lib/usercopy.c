@@ -163,10 +163,13 @@ EXPORT_SYMBOL(raw_copy_to_user);
  * If @count is smaller than the length of the string, copies @count bytes
  * and returns @count.
  */
-long __strncpy_from_user(char *dst, const char *src, long count)
+long strncpy_from_user(char *dst, const char *src, long count)
 {
 	long res, faultres;
 	int tmp;
+
+	if (!access_ok(s, 1))
+		return -EFAULT;
 
 	__asm__ __volatile__(
 	"       cmpnei  %3, 0           \n"
@@ -198,7 +201,7 @@ long __strncpy_from_user(char *dst, const char *src, long count)
 
 	return res;
 }
-EXPORT_SYMBOL(__strncpy_from_user);
+EXPORT_SYMBOL(strncpy_from_user);
 
 /*
  * strnlen_user: - Get the size of a string in user space.
@@ -211,9 +214,12 @@ EXPORT_SYMBOL(__strncpy_from_user);
  * On exception, returns 0.
  * If the string is too long, returns a value greater than @n.
  */
-long __strnlen_user(const char *s, long n)
+long strnlen_user(const char *s, long n)
 {
 	unsigned long res, tmp;
+
+	if (!access_ok(s, 1))
+		return -EFAULT;
 
 	__asm__ __volatile__(
 	"       cmpnei  %1, 0           \n"
@@ -242,7 +248,7 @@ long __strnlen_user(const char *s, long n)
 
 	return res;
 }
-EXPORT_SYMBOL(__strnlen_user);
+EXPORT_SYMBOL(strnlen_user);
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
