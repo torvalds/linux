@@ -172,11 +172,10 @@ static void felix_phylink_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, Autoneg);
 	phylink_set(mask, Pause);
 	phylink_set(mask, Asym_Pause);
-	if (state->interface != PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Full);
-		phylink_set(mask, 1000baseT_Full);
-	}
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Full);
+
 	/* The internal ports that run at 2.5G are overclocked GMII */
 	if (state->interface == PHY_INTERFACE_MODE_GMII ||
 	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
