@@ -275,12 +275,11 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
  * \param len The crypto sequence length
  * \param add_comp If "true": add an artificial dout DMA to mark completion
  *
- * \return int Returns -EINPROGRESS or error code
  */
-static int cc_do_send_request(struct cc_drvdata *drvdata,
-			      struct cc_crypto_req *cc_req,
-			      struct cc_hw_desc *desc, unsigned int len,
-				bool add_comp)
+static void cc_do_send_request(struct cc_drvdata *drvdata,
+			       struct cc_crypto_req *cc_req,
+			       struct cc_hw_desc *desc, unsigned int len,
+			       bool add_comp)
 {
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int used_sw_slots;
@@ -328,9 +327,6 @@ static int cc_do_send_request(struct cc_drvdata *drvdata,
 		/* Update the free slots in HW queue */
 		req_mgr_h->q_free_slots -= total_seq_len;
 	}
-
-	/* Operation still in process */
-	return -EINPROGRESS;
 }
 
 static void cc_enqueue_backlog(struct cc_drvdata *drvdata,
@@ -390,15 +386,9 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 			return;
 		}
 
-		rc = cc_do_send_request(drvdata, &bli->creq, bli->desc,
-					bli->len, false);
-
+		cc_do_send_request(drvdata, &bli->creq, bli->desc, bli->len,
+				   false);
 		spin_unlock(&mgr->hw_lock);
-
-		if (rc != -EINPROGRESS) {
-			cc_pm_put_suspend(dev);
-			creq->user_cb(dev, req, rc);
-		}
 
 		/* Remove ourselves from the backlog list */
 		spin_lock(&mgr->bl_lock);
@@ -452,8 +442,10 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 		return -EBUSY;
 	}
 
-	if (!rc)
-		rc = cc_do_send_request(drvdata, cc_req, desc, len, false);
+	if (!rc) {
+		cc_do_send_request(drvdata, cc_req, desc, len, false);
+		rc = -EINPROGRESS;
+	}
 
 	spin_unlock_bh(&mgr->hw_lock);
 	return rc;
@@ -493,14 +485,8 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 		reinit_completion(&drvdata->hw_queue_avail);
 	}
 
-	rc = cc_do_send_request(drvdata, cc_req, desc, len, true);
+	cc_do_send_request(drvdata, cc_req, desc, len, true);
 	spin_unlock_bh(&mgr->hw_lock);
-
-	if (rc != -EINPROGRESS) {
-		cc_pm_put_suspend(dev);
-		return rc;
-	}
-
 	wait_for_completion(&cc_req->seq_compl);
 	return 0;
 }
