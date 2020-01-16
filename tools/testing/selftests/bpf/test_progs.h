@@ -46,8 +46,14 @@ enum verbosity {
 	VERBOSE_SUPER,
 };
 
+struct str_set {
+	const char **strs;
+	int cnt;
+};
+
 struct test_selector {
-	const char *name;
+	struct str_set whitelist;
+	struct str_set blacklist;
 	bool *num_set;
 	int num_set_len;
 };
