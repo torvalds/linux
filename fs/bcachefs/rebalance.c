@@ -183,6 +183,8 @@ static int bch2_rebalance_thread(void *arg)
 	prev_cputime	= curr_cputime();
 
 	while (!kthread_wait_freezable(r->enabled)) {
+		cond_resched();
+
 		start			= jiffies;
 		cputime			= curr_cputime();
 
