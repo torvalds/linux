@@ -254,23 +254,18 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 	sort_iter_sort(iter, sort_keys_cmp);
 
 	while ((in = sort_iter_next(iter, sort_keys_cmp))) {
+		bool needs_whiteout = false;
+
 		if (bkey_whiteout(in) &&
 		    (filter_whiteouts || !in->needs_whiteout))
 			continue;
 
-		if (bkey_whiteout(in) &&
-		    (next = sort_iter_peek(iter)) &&
-		    !bkey_cmp_packed(iter->b, in, next)) {
+		while ((next = sort_iter_peek(iter)) &&
+		       !bkey_cmp_packed(iter->b, in, next)) {
 			BUG_ON(in->needs_whiteout &&
 			       next->needs_whiteout);
-			/*
-			 * XXX racy, called with read lock from write path
-			 *
-			 * leads to spurious BUG_ON() in bkey_unpack_key() in
-			 * debug mode
-			 */
-			next->needs_whiteout |= in->needs_whiteout;
-			continue;
+			needs_whiteout |= in->needs_whiteout;
+			in = sort_iter_next(iter, sort_keys_cmp);
 		}
 
 		if (bkey_whiteout(in)) {
@@ -279,6 +274,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 		} else {
 			bkey_copy(out, in);
 		}
+		out->needs_whiteout |= needs_whiteout;
 		out = bkey_next(out);
 	}
 

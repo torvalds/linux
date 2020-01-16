@@ -199,12 +199,6 @@ __bkey_unpack_key_format_checked(const struct btree *b,
 		if (btree_keys_expensive_checks(b)) {
 			struct bkey dst2 = __bch2_bkey_unpack_key(&b->format, src);
 
-			/*
-			 * hack around a harmless race when compacting whiteouts
-			 * for a write:
-			 */
-			dst2.needs_whiteout = dst->needs_whiteout;
-
 			BUG_ON(memcmp(dst, &dst2, sizeof(*dst)));
 		}
 	}
