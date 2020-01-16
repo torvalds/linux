@@ -76,9 +76,6 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	if (CHECK(!skel, "skel_open_and_load", "skeleton open_and_load failed\n"))
 		goto skel_open_load_failure;
 
-	/* add a delay for child thread to ramp up */
-	usleep(100);
-
 	if (!attr) {
 		err = test_send_signal_kern__attach(skel);
 		if (CHECK(err, "skel_attach", "skeleton attach failed\n")) {
@@ -155,8 +152,7 @@ static void test_send_signal_perf(bool signal_thread)
 static void test_send_signal_nmi(bool signal_thread)
 {
 	struct perf_event_attr attr = {
-		.sample_freq = 50,
-		.freq = 1,
+		.sample_period = 1,
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
