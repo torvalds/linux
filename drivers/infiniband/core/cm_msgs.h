@@ -124,14 +124,37 @@ static inline void cm_req_set_remote_resp_timeout(struct cm_req_msg *req_msg,
 					  0xFFFFFF07));
 }
 
+static inline u8 cm_req_get_transport_type(struct cm_req_msg *req_msg)
+{
+	return (u8) ((be32_to_cpu(req_msg->offset40) & 0x06) >> 1);
+}
+
+static inline void cm_req_set_transport_type(struct cm_req_msg *req_msg, u8 val)
+{
+	req_msg->offset40 =
+		cpu_to_be32((be32_to_cpu(req_msg->offset40) & 0xFFFFFFF9) |
+		(val << 1));
+}
+
+static inline u8 cm_req_get_transport_type_ex(struct cm_req_msg *req_msg)
+{
+	return req_msg->offset51 & 0x7;
+}
+
+static inline void cm_req_set_transport_type_ex(struct cm_req_msg *req_msg,
+						u8 val)
+{
+	req_msg->offset51 = (req_msg->offset51 & 0xF8) | val;
+}
+
 static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 {
-	u8 transport_type = (u8) (be32_to_cpu(req_msg->offset40) & 0x06) >> 1;
+	u8 transport_type = cm_req_get_transport_type(req_msg);
 	switch(transport_type) {
 	case 0: return IB_QPT_RC;
 	case 1: return IB_QPT_UC;
 	case 3:
-		switch (req_msg->offset51 & 0x7) {
+		switch (cm_req_get_transport_type_ex(req_msg)) {
 		case 1: return IB_QPT_XRC_TGT;
 		default: return 0;
 		}
@@ -144,20 +167,14 @@ static inline void cm_req_set_qp_type(struct cm_req_msg *req_msg,
 {
 	switch(qp_type) {
 	case IB_QPT_UC:
-		req_msg->offset40 = cpu_to_be32((be32_to_cpu(
-						  req_msg->offset40) &
-						   0xFFFFFFF9) | 0x2);
+		cm_req_set_transport_type(req_msg, 1);
 		break;
 	case IB_QPT_XRC_INI:
-		req_msg->offset40 = cpu_to_be32((be32_to_cpu(
-						 req_msg->offset40) &
-						   0xFFFFFFF9) | 0x6);
-		req_msg->offset51 = (req_msg->offset51 & 0xF8) | 1;
+		cm_req_set_transport_type(req_msg, 3);
+		cm_req_set_transport_type_ex(req_msg, 1);
 		break;
 	default:
-		req_msg->offset40 = cpu_to_be32(be32_to_cpu(
-						 req_msg->offset40) &
-						  0xFFFFFFF9);
+		cm_req_set_transport_type(req_msg, 0);
 	}
 }
 
