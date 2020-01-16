@@ -3286,10 +3286,19 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		return ret;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
+		const bool in_async = io_wq_current_is_worker();
+
 		if (req->result == -EAGAIN)
 			return -EAGAIN;
 
+		/* workqueue context doesn't hold uring_lock, grab it now */
+		if (in_async)
+			mutex_lock(&ctx->uring_lock);
+
 		io_iopoll_req_issued(req);
+
+		if (in_async)
+			mutex_unlock(&ctx->uring_lock);
 	}
 
 	return 0;
