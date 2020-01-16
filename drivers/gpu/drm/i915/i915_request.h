@@ -71,6 +71,18 @@ enum {
 	I915_FENCE_FLAG_ACTIVE = DMA_FENCE_FLAG_USER_BITS,
 
 	/*
+	 * I915_FENCE_FLAG_PQUEUE - this request is ready for execution
+	 *
+	 * Using the scheduler, when a request is ready for execution it is put
+	 * into the priority queue, and removed from that queue when transferred
+	 * to the HW runlists. We want to track its membership within the
+	 * priority queue so that we can easily check before rescheduling.
+	 *
+	 * See i915_request_in_priority_queue()
+	 */
+	I915_FENCE_FLAG_PQUEUE,
+
+	/*
 	 * I915_FENCE_FLAG_SIGNAL - this request is currently on signal_list
 	 *
 	 * Internal bookkeeping used by the breadcrumb code to track when
@@ -359,6 +371,11 @@ static inline bool i915_request_signaled(const struct i915_request *rq)
 static inline bool i915_request_is_active(const struct i915_request *rq)
 {
 	return test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
+}
+
+static inline bool i915_request_in_priority_queue(const struct i915_request *rq)
+{
+	return test_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 }
 
 /**
