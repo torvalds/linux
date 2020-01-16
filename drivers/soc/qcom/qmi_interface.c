@@ -655,8 +655,12 @@ int qmi_handle_init(struct qmi_handle *qmi, size_t recv_buf_size,
 
 	qmi->sock = qmi_sock_create(qmi, &qmi->sq);
 	if (IS_ERR(qmi->sock)) {
-		pr_err("failed to create QMI socket\n");
-		ret = PTR_ERR(qmi->sock);
+		if (PTR_ERR(qmi->sock) == -EAFNOSUPPORT) {
+			ret = -EPROBE_DEFER;
+		} else {
+			pr_err("failed to create QMI socket\n");
+			ret = PTR_ERR(qmi->sock);
+		}
 		goto err_destroy_wq;
 	}
 
