@@ -95,8 +95,9 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* register the port */
 	ret = serial8250_register_8250_port(&data->uart);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to register 8250 port - %d\n",
-			ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"unable to register 8250 port - %d\n", ret);
 		goto dis_clk;
 	}
 	data->line = ret;
