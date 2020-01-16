@@ -15,6 +15,7 @@
 #include <linux/blk-crypto.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
+#include <linux/keyslot-manager.h>
 
 #include "fscrypt_private.h"
 
@@ -48,6 +49,7 @@ void fscrypt_select_encryption_impl(struct fscrypt_info *ci)
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				     const u8 *raw_key,
+				     unsigned int raw_key_size,
 				     const struct fscrypt_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
@@ -74,7 +76,10 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	else
 		sb->s_cop->get_devices(sb, blk_key->devs);
 
-	err = blk_crypto_init_key(&blk_key->base, raw_key, ci->ci_mode->keysize,
+	BUILD_BUG_ON(FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE >
+		     BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE);
+
+	err = blk_crypto_init_key(&blk_key->base, raw_key, raw_key_size,
 				  crypto_mode, sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
@@ -130,6 +135,22 @@ void fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key)
 		}
 		kzfree(blk_key);
 	}
+}
+
+int fscrypt_derive_raw_secret(struct super_block *sb,
+			      const u8 *wrapped_key,
+			      unsigned int wrapped_key_size,
+			      u8 *raw_secret, unsigned int raw_secret_size)
+{
+	struct request_queue *q;
+
+	q = sb->s_bdev->bd_queue;
+	if (!q->ksm)
+		return -EOPNOTSUPP;
+
+	return keyslot_manager_derive_raw_secret(q->ksm,
+						 wrapped_key, wrapped_key_size,
+						 raw_secret, raw_secret_size);
 }
 
 /**
