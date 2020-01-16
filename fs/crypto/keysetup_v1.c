@@ -233,7 +233,8 @@ fscrypt_get_direct_key(const struct fscrypt_info *ci, const u8 *raw_key)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&dk->dk_refcount, 1);
 	dk->dk_mode = ci->ci_mode;
-	err = fscrypt_prepare_key(&dk->dk_key, raw_key, ci);
+	err = fscrypt_prepare_key(&dk->dk_key, raw_key, ci->ci_mode->keysize,
+				  ci);
 	if (err)
 		goto err_free_dk;
 	memcpy(dk->dk_descriptor, ci->ci_policy.v1.master_key_descriptor,

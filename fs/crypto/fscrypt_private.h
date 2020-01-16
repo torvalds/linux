@@ -20,6 +20,7 @@
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
 
 #define FSCRYPT_MIN_KEY_SIZE		16
+#define FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE	128
 
 #define FSCRYPT_CONTEXT_V1	1
 #define FSCRYPT_CONTEXT_V2	2
@@ -330,10 +331,17 @@ fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
 extern int fscrypt_prepare_inline_crypt_key(
 					struct fscrypt_prepared_key *prep_key,
 					const u8 *raw_key,
+					unsigned int raw_key_size,
 					const struct fscrypt_info *ci);
 
 extern void fscrypt_destroy_inline_crypt_key(
 					struct fscrypt_prepared_key *prep_key);
+
+extern int fscrypt_derive_raw_secret(struct super_block *sb,
+				     const u8 *wrapped_key,
+				     unsigned int wrapped_key_size,
+				     u8 *raw_secret,
+				     unsigned int raw_secret_size);
 
 /*
  * Check whether the crypto transform or blk-crypto key has been allocated in
@@ -367,7 +375,7 @@ static inline bool fscrypt_using_inline_encryption(
 
 static inline int
 fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
-				 const u8 *raw_key,
+				 const u8 *raw_key, unsigned int raw_key_size,
 				 const struct fscrypt_info *ci)
 {
 	WARN_ON(1);
@@ -377,6 +385,17 @@ fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 static inline void
 fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key)
 {
+}
+
+static inline int fscrypt_derive_raw_secret(struct super_block *sb,
+					    const u8 *wrapped_key,
+					    unsigned int wrapped_key_size,
+					    u8 *raw_secret,
+					    unsigned int raw_secret_size)
+{
+	fscrypt_warn(NULL,
+		     "kernel built without support for hardware-wrapped keys");
+	return -EOPNOTSUPP;
 }
 
 static inline bool
@@ -403,8 +422,15 @@ struct fscrypt_master_key_secret {
 	/* Size of the raw key in bytes.  Set even if ->raw isn't set. */
 	u32			size;
 
-	/* For v1 policy keys: the raw key.  Wiped for v2 policy keys. */
-	u8			raw[FSCRYPT_MAX_KEY_SIZE];
+	/* True if the key in ->raw is a hardware-wrapped key. */
+	bool			is_hw_wrapped;
+
+	/*
+	 * For v1 policy keys: the raw key.  Wiped for v2 policy keys, unless
+	 * ->is_hw_wrapped is true, in which case this contains the wrapped key
+	 * rather than the key with which 'hkdf' was keyed.
+	 */
+	u8			raw[FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE];
 
 } __randomize_layout;
 
@@ -549,7 +575,7 @@ fscrypt_mode_supports_direct_key(const struct fscrypt_mode *mode)
 }
 
 extern int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
-			       const u8 *raw_key,
+			       const u8 *raw_key, unsigned int raw_key_size,
 			       const struct fscrypt_info *ci);
 
 extern void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key);
