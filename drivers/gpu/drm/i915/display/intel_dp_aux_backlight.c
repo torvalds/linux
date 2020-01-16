@@ -59,7 +59,24 @@ static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 	u8 read_val[2] = { 0x0 };
+	u8 mode_reg;
 	u16 level = 0;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER,
+			      &mode_reg) != 1) {
+		DRM_DEBUG_KMS("Failed to read the DPCD register 0x%x\n",
+			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER);
+		return 0;
+	}
+
+	/*
+	 * If we're not in DPCD control mode yet, the programmed brightness
+	 * value is meaningless and we should assume max brightness
+	 */
+	if ((mode_reg & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) !=
+	    DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD)
+		return connector->panel.backlight.max;
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
 			     &read_val, sizeof(read_val)) < 0) {
