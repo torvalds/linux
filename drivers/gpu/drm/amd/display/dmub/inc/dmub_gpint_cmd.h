@@ -65,4 +65,10 @@ enum dmub_gpint_command {
 	DMUB_GPINT__STOP_FW = 2,
 };
 
+/**
+ * Command responses.
+ */
+
+#define DMUB_GPINT__STOP_FW_RESPONSE 0xDEADDEAD
+
 #endif /* _DMUB_GPINT_CMD_H_ */

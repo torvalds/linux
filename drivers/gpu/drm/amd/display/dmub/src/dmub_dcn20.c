@@ -77,6 +77,42 @@ static inline void dmub_dcn20_translate_addr(const union dmub_addr *addr_in,
 
 void dmub_dcn20_reset(struct dmub_srv *dmub)
 {
+	union dmub_gpint_data_register cmd;
+	const uint32_t timeout = 30;
+	uint32_t in_reset, scratch, i;
+
+	REG_GET(DMCUB_CNTL, DMCUB_SOFT_RESET, &in_reset);
+
+	if (in_reset == 0) {
+		cmd.bits.status = 1;
+		cmd.bits.command_code = DMUB_GPINT__STOP_FW;
+		cmd.bits.param = 0;
+
+		dmub->hw_funcs.set_gpint(dmub, cmd);
+
+		/**
+		 * Timeout covers both the ACK and the wait
+		 * for remaining work to finish.
+		 *
+		 * This is mostly bound by the PHY disable sequence.
+		 * Each register check will be greater than 1us, so
+		 * don't bother using udelay.
+		 */
+
+		for (i = 0; i < timeout; ++i) {
+			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
+				break;
+		}
+
+		for (i = 0; i < timeout; ++i) {
+			scratch = dmub->hw_funcs.get_gpint_response(dmub);
+			if (scratch == DMUB_GPINT__STOP_FW_RESPONSE)
+				break;
+		}
+
+		/* Force reset in case we timed out, DMCUB is likely hung. */
+	}
+
 	REG_UPDATE(DMCUB_CNTL, DMCUB_SOFT_RESET, 1);
 	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
