@@ -4480,22 +4480,22 @@ static void goya_get_event_desc(u16 event_type, char *desc, size_t size)
 static void goya_print_razwi_info(struct hl_device *hdev)
 {
 	if (RREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD)) {
-		dev_err(hdev->dev, "Illegal write to LBW\n");
+		dev_err_ratelimited(hdev->dev, "Illegal write to LBW\n");
 		WREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD, 0);
 	}
 
 	if (RREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD)) {
-		dev_err(hdev->dev, "Illegal read from LBW\n");
+		dev_err_ratelimited(hdev->dev, "Illegal read from LBW\n");
 		WREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD, 0);
 	}
 
 	if (RREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD)) {
-		dev_err(hdev->dev, "Illegal write to HBW\n");
+		dev_err_ratelimited(hdev->dev, "Illegal write to HBW\n");
 		WREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD, 0);
 	}
 
 	if (RREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD)) {
-		dev_err(hdev->dev, "Illegal read from HBW\n");
+		dev_err_ratelimited(hdev->dev, "Illegal read from HBW\n");
 		WREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD, 0);
 	}
 }
@@ -4515,7 +4515,8 @@ static void goya_print_mmu_error_info(struct hl_device *hdev)
 		addr <<= 32;
 		addr |= RREG32(mmMMU_PAGE_ERROR_CAPTURE_VA);
 
-		dev_err(hdev->dev, "MMU page fault on va 0x%llx\n", addr);
+		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n",
+					addr);
 
 		WREG32(mmMMU_PAGE_ERROR_CAPTURE, 0);
 	}
@@ -4527,7 +4528,7 @@ static void goya_print_irq_info(struct hl_device *hdev, u16 event_type,
 	char desc[20] = "";
 
 	goya_get_event_desc(event_type, desc, sizeof(desc));
-	dev_err(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
+	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
 	if (razwi) {
