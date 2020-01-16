@@ -48,7 +48,7 @@ int cc_pm_resume(struct device *dev)
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
 	}
-	/* wait for Crytpcell reset completion */
+	/* wait for Cryptocell reset completion */
 	if (!cc_wait_for_reset_completion(drvdata)) {
 		dev_err(dev, "Cryptocell reset not completed");
 		return -EBUSY;
