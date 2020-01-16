@@ -765,7 +765,7 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 	rev = bq25890_field_read(bq, F_DEV_REV);
 	if (rev < 0) {
 		dev_err(bq->dev, "Cannot read chip revision.\n");
-		return id;
+		return rev;
 	}
 
 	switch (id) {
