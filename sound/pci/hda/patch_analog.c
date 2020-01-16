@@ -28,6 +28,7 @@ struct ad198x_spec {
 	hda_nid_t eapd_nid;
 
 	unsigned int beep_amp;	/* beep amp value, set via set_beep_amp() */
+	int num_smux_conns;
 };
 
 
@@ -453,8 +454,7 @@ static int ad1983_auto_smux_enum_info(struct snd_kcontrol *kcontrol,
 	struct ad198x_spec *spec = codec->spec;
 	static const char * const texts2[] = { "PCM", "ADC" };
 	static const char * const texts3[] = { "PCM", "ADC1", "ADC2" };
-	hda_nid_t dig_out = spec->gen.multiout.dig_out_nid;
-	int num_conns = snd_hda_get_num_conns(codec, dig_out);
+	int num_conns = spec->num_smux_conns;
 
 	if (num_conns == 2)
 		return snd_hda_enum_helper_info(kcontrol, uinfo, 2, texts2);
@@ -481,7 +481,7 @@ static int ad1983_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	struct ad198x_spec *spec = codec->spec;
 	unsigned int val = ucontrol->value.enumerated.item[0];
 	hda_nid_t dig_out = spec->gen.multiout.dig_out_nid;
-	int num_conns = snd_hda_get_num_conns(codec, dig_out);
+	int num_conns = spec->num_smux_conns;
 
 	if (val >= num_conns)
 		return -EINVAL;
@@ -512,6 +512,7 @@ static int ad1983_add_spdif_mux_ctl(struct hda_codec *codec)
 	num_conns = snd_hda_get_num_conns(codec, dig_out);
 	if (num_conns != 2 && num_conns != 3)
 		return 0;
+	spec->num_smux_conns = num_conns;
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1983_auto_smux_mixer))
 		return -ENOMEM;
 	return 0;
@@ -730,10 +731,12 @@ static int ad1988_auto_smux_enum_info(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
 	static const char * const texts[] = {
 		"PCM", "ADC1", "ADC2", "ADC3",
 	};
-	int num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
+	int num_conns = spec->num_smux_conns;
+
 	if (num_conns > 4)
 		num_conns = 4;
 	return snd_hda_enum_helper_info(kcontrol, uinfo, num_conns, texts);
@@ -756,7 +759,7 @@ static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	struct ad198x_spec *spec = codec->spec;
 	unsigned int val = ucontrol->value.enumerated.item[0];
 	struct nid_path *path;
-	int num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
+	int num_conns = spec->num_smux_conns;
 
 	if (val >= num_conns)
 		return -EINVAL;
@@ -847,6 +850,7 @@ static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
 	num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
 	if (num_conns != 3 && num_conns != 4)
 		return 0;
+	spec->num_smux_conns = num_conns;
 
 	for (i = 0; i < num_conns; i++) {
 		struct nid_path *path = snd_array_new(&spec->gen.paths);
