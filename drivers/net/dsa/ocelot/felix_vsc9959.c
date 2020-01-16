@@ -645,6 +645,27 @@ static void vsc9959_pcs_init_sgmii(struct phy_device *pcs,
 				   const struct phylink_link_state *state)
 {
 	if (link_an_mode == MLO_AN_INBAND) {
+		int bmsr, bmcr;
+
+		/* Some PHYs like VSC8234 don't like it when AN restarts on
+		 * their system  side and they restart line side AN too, going
+		 * into an endless link up/down loop.  Don't restart PCS AN if
+		 * link is up already.
+		 * We do check that AN is enabled just in case this is the 1st
+		 * call, PCS detects a carrier but AN is disabled from power on
+		 * or by boot loader.
+		 */
+		bmcr = phy_read(pcs, MII_BMCR);
+		if (bmcr < 0)
+			return;
+
+		bmsr = phy_read(pcs, MII_BMSR);
+		if (bmsr < 0)
+			return;
+
+		if ((bmcr & BMCR_ANENABLE) && (bmsr & BMSR_LSTATUS))
+			return;
+
 		/* SGMII spec requires tx_config_Reg[15:0] to be exactly 0x4001
 		 * for the MAC PCS in order to acknowledge the AN.
 		 */
