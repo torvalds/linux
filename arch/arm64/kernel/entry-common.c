@@ -36,14 +36,14 @@ static void notrace el1_pc(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el1_pc);
 
-static void el1_undef(struct pt_regs *regs)
+static void notrace el1_undef(struct pt_regs *regs)
 {
 	local_daif_inherit(regs);
 	do_undefinstr(regs);
 }
 NOKPROBE_SYMBOL(el1_undef);
 
-static void el1_inv(struct pt_regs *regs, unsigned long esr)
+static void notrace el1_inv(struct pt_regs *regs, unsigned long esr)
 {
 	local_daif_inherit(regs);
 	bad_mode(regs, 0, esr);
