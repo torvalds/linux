@@ -14,6 +14,7 @@
 	aliases {
 		ethernet0 = &emac;
 		serial0 = &uart0;
+		spi0 = &spi0;
 	};
 
 	chosen {
@@ -276,6 +277,24 @@
 
 &r_pio {
 	vcc-pm-supply = <&reg_aldo1>;
+};
+
+/*
+ * The CS pin is shared with the MMC2 CMD pin, so we cannot have the SPI
+ * flash and eMMC at the same time, as one of them would fail probing.
+ * Disable SPI0 in here, to prefer the more useful eMMC. U-Boot can
+ * fix this up in no eMMC is connected.
+ */
+&spi0 {
+	pinctrl-0 = <&spi0_pins>, <&spi0_cs_pin>;
+	pinctrl-names = "default";
+	status = "disabled";
+
+	flash@0 {
+		compatible = "winbond,w25q128", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+	};
 };
 
 &uart0 {
