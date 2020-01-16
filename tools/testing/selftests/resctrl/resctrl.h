@@ -18,12 +18,16 @@
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/eventfd.h>
 #include <asm/unistd.h>
 #include <linux/perf_event.h>
 
 #define MB			(1024 * 1024)
 #define RESCTRL_PATH		"/sys/fs/resctrl"
 #define PHYS_ID_PATH		"/sys/devices/system/cpu/cpu"
+#define CBM_MASK_PATH		"/sys/fs/resctrl/info"
 
 #define PARENT_EXIT(err_msg)			\
 	do {					\
@@ -53,11 +57,15 @@ struct resctrl_val_param {
 	int		mum_resctrlfs;
 	char		filename[64];
 	char		*bw_report;
+	unsigned long	mask;
+	int		num_of_runs;
 	int		(*setup)(int num, ...);
 };
 
 pid_t bm_pid, ppid;
 int tests_run;
+
+char llc_occup_path[1024];
 
 bool check_resctrlfs_support(void);
 int filter_dmesg(void);
@@ -83,5 +91,13 @@ void tests_cleanup(void);
 void mbm_test_cleanup(void);
 int mba_schemata_change(int cpu_no, char *bw_report, char **benchmark_cmd);
 void mba_test_cleanup(void);
+int get_cbm_mask(char *cache_type);
+int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size);
+void ctrlc_handler(int signum, siginfo_t *info, void *ptr);
+int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd);
+unsigned int count_bits(unsigned long n);
+void cqm_test_cleanup(void);
+int get_core_sibling(int cpu_no);
+int measure_cache_vals(struct resctrl_val_param *param, int bm_pid);
 
 #endif /* RESCTRL_H */
