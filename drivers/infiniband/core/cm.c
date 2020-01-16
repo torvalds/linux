@@ -4253,9 +4253,276 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 	kfree(cm_dev);
 }
 
+/*
+ * Check at compile time that the byte offset and length of field old_name in
+ * the struct matches the byte offset and length in the new macro.
+ */
+#define _IBA_CHECK_OFF(old_name, field_struct, field_offset, mask, bits) \
+	static_assert(offsetof(field_struct, old_name) == (field_offset));     \
+	static_assert(bits == sizeof(((field_struct *)0)->old_name) * 8)
+#define IBA_CHECK_OFF(field, old_name) _IBA_CHECK_OFF(old_name, field)
+
+IBA_CHECK_OFF(CM_REQ_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_REQ_SERVICE_ID, service_id);
+IBA_CHECK_OFF(CM_REQ_LOCAL_CA_GUID, local_ca_guid);
+IBA_CHECK_OFF(CM_REQ_LOCAL_Q_KEY, local_qkey);
+IBA_CHECK_OFF(CM_REQ_PARTITION_KEY, pkey);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_LOCAL_PORT_LID, primary_local_lid);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_REMOTE_PORT_LID, primary_remote_lid);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_LOCAL_PORT_GID, primary_local_gid);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_REMOTE_PORT_GID, primary_remote_gid);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_TRAFFIC_CLASS, primary_traffic_class);
+IBA_CHECK_OFF(CM_REQ_PRIMARY_HOP_LIMIT, primary_hop_limit);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_LOCAL_PORT_LID, alt_local_lid);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_REMOTE_PORT_LID, alt_remote_lid);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_LOCAL_PORT_GID, alt_local_gid);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_REMOTE_PORT_GID, alt_remote_gid);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_TRAFFIC_CLASS, alt_traffic_class);
+IBA_CHECK_OFF(CM_REQ_ALTERNATE_HOP_LIMIT, alt_hop_limit);
+IBA_CHECK_OFF(CM_REQ_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_MRA_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_MRA_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_MRA_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_REJ_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_REJ_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_REJ_REASON, reason);
+IBA_CHECK_OFF(CM_REJ_ARI, ari);
+IBA_CHECK_OFF(CM_REJ_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_REP_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_REP_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_REP_LOCAL_Q_KEY, local_qkey);
+IBA_CHECK_OFF(CM_REP_RESPONDER_RESOURCES, resp_resources);
+IBA_CHECK_OFF(CM_REP_INITIATOR_DEPTH, initiator_depth);
+IBA_CHECK_OFF(CM_REP_LOCAL_CA_GUID, local_ca_guid);
+IBA_CHECK_OFF(CM_REP_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_RTU_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_RTU_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_RTU_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_DREQ_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_DREQ_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_DREQ_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_DREP_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_DREP_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_DREP_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_LAP_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_LAP_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_LAP_ALTERNATE_LOCAL_PORT_LID, alt_local_lid);
+IBA_CHECK_OFF(CM_LAP_ALTERNATE_REMOTE_PORT_LID, alt_remote_lid);
+IBA_CHECK_OFF(CM_LAP_ALTERNATE_LOCAL_PORT_GID, alt_local_gid);
+IBA_CHECK_OFF(CM_LAP_ALTERNATE_REMOTE_PORT_GID, alt_remote_gid);
+IBA_CHECK_OFF(CM_LAP_ALTERNATE_HOP_LIMIT, alt_hop_limit);
+IBA_CHECK_OFF(CM_LAP_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_APR_LOCAL_COMM_ID, local_comm_id);
+IBA_CHECK_OFF(CM_APR_REMOTE_COMM_ID, remote_comm_id);
+IBA_CHECK_OFF(CM_APR_ADDITIONAL_INFORMATION_LENGTH, info_length);
+IBA_CHECK_OFF(CM_APR_AR_STATUS, ap_status);
+IBA_CHECK_OFF(CM_APR_ADDITIONAL_INFORMATION, info);
+IBA_CHECK_OFF(CM_APR_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_SIDR_REQ_REQUESTID, request_id);
+IBA_CHECK_OFF(CM_SIDR_REQ_PARTITION_KEY, pkey);
+IBA_CHECK_OFF(CM_SIDR_REQ_SERVICEID, service_id);
+IBA_CHECK_OFF(CM_SIDR_REQ_PRIVATE_DATA, private_data);
+IBA_CHECK_OFF(CM_SIDR_REP_REQUESTID, request_id);
+IBA_CHECK_OFF(CM_SIDR_REP_STATUS, status);
+IBA_CHECK_OFF(CM_SIDR_REP_ADDITIONAL_INFORMATION_LENGTH, info_length);
+IBA_CHECK_OFF(CM_SIDR_REP_SERVICEID, service_id);
+IBA_CHECK_OFF(CM_SIDR_REP_Q_KEY, qkey);
+IBA_CHECK_OFF(CM_SIDR_REP_ADDITIONAL_INFORMATION, info);
+IBA_CHECK_OFF(CM_SIDR_REP_PRIVATE_DATA, private_data);
+
+/*
+ * Check that the new macro gets the same bits as the old get function.
+ *  - IBA_SET() IBA_GET and old get_fn all agree on the field width.
+ *    The field width should match what IBA_SET truncates to
+ *  - Reading from an all ones data should not return extra bits
+ *  - Setting '1' should be the same (ie no endian problems)
+ */
+/* defeat builtin_constant checks */
+u64 cm_global_all_ones = 0xffffffffffffffffULL;
+#define _IBA_CHECK_GET(fn, field_struct, field_offset, mask, bits)             \
+	({                                                                     \
+		field_struct *lmsg = (field_struct *)msg;                      \
+		unsigned long long all_ones;                                   \
+		static_assert(sizeof(*lmsg) <= sizeof(msg));                   \
+                                                                               \
+		bitmap_zero(msg, nbits);                                       \
+		_IBA_SET(field_struct, field_offset, mask, bits, lmsg,         \
+			 cm_global_all_ones);                                  \
+		all_ones = (1ULL << bitmap_weight(msg, nbits)) - 1;            \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    all_ones) {                                                \
+			printk("Failed #1 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		if (fn != all_ones) {                                          \
+			printk("Failed #2 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+                                                                               \
+		bitmap_fill(msg, nbits);                                       \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    all_ones) {                                                \
+			printk("Failed #3 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		if (fn != all_ones) {                                          \
+			printk("Failed #4 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+                                                                               \
+		_IBA_SET(field_struct, field_offset, mask, bits, lmsg, 0);     \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    0) {                                                       \
+			printk("Failed #5 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		if (fn != 0) {                                                 \
+			printk("Failed #6 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		_IBA_SET(field_struct, field_offset, mask, bits, lmsg, 1);     \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    1) {                                                       \
+			printk("Failed #7 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		if (fn != 1) {                                                 \
+			printk("Failed #8 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+	})
+#define IBA_CHECK_GET(field, fn_name) _IBA_CHECK_GET(fn_name(lmsg), field)
+#define IBA_CHECK_GET_BE(field, fn_name) _IBA_CHECK_GET(be32_to_cpu(fn_name(lmsg)), field)
+
+/*
+ * Write the all ones value using the old setter and check that the new getter
+ * reads it back.
+ */
+#define _IBA_CHECK_SET(fn, field_struct, field_offset, mask, bits)             \
+	({                                                                     \
+		field_struct *lmsg = (field_struct *)msg;                      \
+		unsigned long long all_ones;                                   \
+		static_assert(sizeof(*lmsg) <= sizeof(msg));                   \
+                                                                               \
+		bitmap_zero(msg, nbits);                                       \
+		_IBA_SET(field_struct, field_offset, mask, bits, lmsg,         \
+			 cm_global_all_ones);                                  \
+		all_ones = (1ULL << bitmap_weight(msg, nbits)) - 1;            \
+		bitmap_zero(msg, nbits);                                       \
+		fn;                                                            \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    all_ones) {                                                \
+			printk("Failed #9 line=%u\n", __LINE__);               \
+			return;                                                \
+		}                                                              \
+		all_ones = 1;                                                  \
+		fn;                                                            \
+		if (_IBA_GET(field_struct, field_offset, mask, bits, lmsg) !=  \
+		    1) {                                                       \
+			printk("Failed #10 line=%u\n", __LINE__);              \
+			return;                                                \
+		}                                                              \
+	})
+
+#define IBA_CHECK_SET(field, fn_name) _IBA_CHECK_SET(fn_name(lmsg, all_ones), field)
+#define IBA_CHECK_SET_BE(field, fn_name)                                       \
+	_IBA_CHECK_SET(fn_name(lmsg, cpu_to_be32(all_ones)), field)
+
+static void self_test(void)
+{
+	unsigned long msg[256/4];
+	const unsigned int nbits = sizeof(msg) * 8;
+
+	printk("Running CM extractor self test\n");
+	IBA_CHECK_GET_BE(CM_REQ_LOCAL_QPN, cm_req_get_local_qpn);
+	IBA_CHECK_SET_BE(CM_REQ_LOCAL_QPN, cm_req_set_local_qpn);
+	IBA_CHECK_GET(CM_REQ_RESPONDER_RESOURCES, cm_req_get_resp_res);
+	IBA_CHECK_SET(CM_REQ_RESPONDER_RESOURCES, cm_req_set_resp_res);
+	IBA_CHECK_GET(CM_REQ_INITIATOR_DEPTH, cm_req_get_init_depth);
+	IBA_CHECK_SET(CM_REQ_INITIATOR_DEPTH, cm_req_set_init_depth);
+	IBA_CHECK_GET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, cm_req_get_remote_resp_timeout);
+	IBA_CHECK_SET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, cm_req_set_remote_resp_timeout);
+	IBA_CHECK_GET(CM_REQ_TRANSPORT_SERVICE_TYPE, cm_req_get_transport_type);
+	IBA_CHECK_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, cm_req_set_transport_type);
+	IBA_CHECK_GET(CM_REQ_END_TO_END_FLOW_CONTROL, cm_req_get_flow_ctrl);
+	IBA_CHECK_SET(CM_REQ_END_TO_END_FLOW_CONTROL, cm_req_set_flow_ctrl);
+	IBA_CHECK_GET_BE(CM_REQ_STARTING_PSN, cm_req_get_starting_psn);
+	IBA_CHECK_SET_BE(CM_REQ_STARTING_PSN, cm_req_set_starting_psn);
+	IBA_CHECK_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, cm_req_get_local_resp_timeout);
+	IBA_CHECK_SET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, cm_req_set_local_resp_timeout);
+	IBA_CHECK_GET(CM_REQ_RETRY_COUNT, cm_req_get_retry_count);
+	IBA_CHECK_SET(CM_REQ_RETRY_COUNT, cm_req_set_retry_count);
+	IBA_CHECK_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, cm_req_get_path_mtu);
+	IBA_CHECK_SET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, cm_req_set_path_mtu);
+	IBA_CHECK_GET(CM_REQ_RNR_RETRY_COUNT, cm_req_get_rnr_retry_count);
+	IBA_CHECK_SET(CM_REQ_RNR_RETRY_COUNT, cm_req_set_rnr_retry_count);
+	IBA_CHECK_GET(CM_REQ_MAX_CM_RETRIES, cm_req_get_max_cm_retries);
+	IBA_CHECK_SET(CM_REQ_MAX_CM_RETRIES, cm_req_set_max_cm_retries);
+	IBA_CHECK_GET(CM_REQ_SRQ, cm_req_get_srq);
+	IBA_CHECK_SET(CM_REQ_SRQ, cm_req_set_srq);
+	IBA_CHECK_GET(CM_REQ_EXTENDED_TRANSPORT_TYPE, cm_req_get_transport_type_ex);
+	IBA_CHECK_SET(CM_REQ_EXTENDED_TRANSPORT_TYPE, cm_req_set_transport_type_ex);
+	IBA_CHECK_GET_BE(CM_REQ_PRIMARY_FLOW_LABEL, cm_req_get_primary_flow_label);
+	IBA_CHECK_SET_BE(CM_REQ_PRIMARY_FLOW_LABEL, cm_req_set_primary_flow_label);
+	IBA_CHECK_GET(CM_REQ_PRIMARY_PACKET_RATE, cm_req_get_primary_packet_rate);
+	IBA_CHECK_SET(CM_REQ_PRIMARY_PACKET_RATE, cm_req_set_primary_packet_rate);
+	IBA_CHECK_GET(CM_REQ_PRIMARY_SL, cm_req_get_primary_sl);
+	IBA_CHECK_SET(CM_REQ_PRIMARY_SL, cm_req_set_primary_sl);
+	IBA_CHECK_GET(CM_REQ_PRIMARY_SUBNET_LOCAL, cm_req_get_primary_subnet_local);
+	IBA_CHECK_SET(CM_REQ_PRIMARY_SUBNET_LOCAL, cm_req_set_primary_subnet_local);
+	IBA_CHECK_GET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, cm_req_get_primary_local_ack_timeout);
+	IBA_CHECK_SET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, cm_req_set_primary_local_ack_timeout);
+	IBA_CHECK_GET_BE(CM_REQ_ALTERNATE_FLOW_LABEL, cm_req_get_alt_flow_label);
+	IBA_CHECK_SET_BE(CM_REQ_ALTERNATE_FLOW_LABEL, cm_req_set_alt_flow_label);
+	IBA_CHECK_GET(CM_REQ_ALTERNATE_PACKET_RATE, cm_req_get_alt_packet_rate);
+	IBA_CHECK_SET(CM_REQ_ALTERNATE_PACKET_RATE, cm_req_set_alt_packet_rate);
+	IBA_CHECK_GET(CM_REQ_ALTERNATE_SL, cm_req_get_alt_sl);
+	IBA_CHECK_SET(CM_REQ_ALTERNATE_SL, cm_req_set_alt_sl);
+	IBA_CHECK_GET(CM_REQ_ALTERNATE_SUBNET_LOCAL, cm_req_get_alt_subnet_local);
+	IBA_CHECK_SET(CM_REQ_ALTERNATE_SUBNET_LOCAL, cm_req_set_alt_subnet_local);
+	IBA_CHECK_GET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_req_get_alt_local_ack_timeout);
+	IBA_CHECK_SET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_req_set_alt_local_ack_timeout);
+	IBA_CHECK_GET(CM_MRA_MESSAGE_MRAED, cm_mra_get_msg_mraed);
+	IBA_CHECK_SET(CM_MRA_MESSAGE_MRAED, cm_mra_set_msg_mraed);
+	IBA_CHECK_GET(CM_MRA_SERVICE_TIMEOUT, cm_mra_get_service_timeout);
+	IBA_CHECK_SET(CM_MRA_SERVICE_TIMEOUT, cm_mra_set_service_timeout);
+	IBA_CHECK_GET(CM_REJ_MESSAGE_REJECTED, cm_rej_get_msg_rejected);
+	IBA_CHECK_SET(CM_REJ_MESSAGE_REJECTED, cm_rej_set_msg_rejected);
+	IBA_CHECK_GET(CM_REJ_REJECTED_INFO_LENGTH, cm_rej_get_reject_info_len);
+	IBA_CHECK_SET(CM_REJ_REJECTED_INFO_LENGTH, cm_rej_set_reject_info_len);
+	IBA_CHECK_GET_BE(CM_REP_LOCAL_QPN, cm_rep_get_local_qpn);
+	IBA_CHECK_SET_BE(CM_REP_LOCAL_QPN, cm_rep_set_local_qpn);
+	IBA_CHECK_GET_BE(CM_REP_LOCAL_EE_CONTEXT_NUMBER, cm_rep_get_local_eecn);
+	IBA_CHECK_SET_BE(CM_REP_LOCAL_EE_CONTEXT_NUMBER, cm_rep_set_local_eecn);
+	IBA_CHECK_GET_BE(CM_REP_STARTING_PSN, cm_rep_get_starting_psn);
+	IBA_CHECK_SET_BE(CM_REP_STARTING_PSN, cm_rep_set_starting_psn);
+	IBA_CHECK_GET(CM_REP_TARGET_ACK_DELAY, cm_rep_get_target_ack_delay);
+	IBA_CHECK_SET(CM_REP_TARGET_ACK_DELAY, cm_rep_set_target_ack_delay);
+	IBA_CHECK_GET(CM_REP_FAILOVER_ACCEPTED, cm_rep_get_failover);
+	IBA_CHECK_SET(CM_REP_FAILOVER_ACCEPTED, cm_rep_set_failover);
+	IBA_CHECK_GET(CM_REP_END_TO_END_FLOW_CONTROL, cm_rep_get_flow_ctrl);
+	IBA_CHECK_SET(CM_REP_END_TO_END_FLOW_CONTROL, cm_rep_set_flow_ctrl);
+	IBA_CHECK_GET(CM_REP_RNR_RETRY_COUNT, cm_rep_get_rnr_retry_count);
+	IBA_CHECK_SET(CM_REP_RNR_RETRY_COUNT, cm_rep_set_rnr_retry_count);
+	IBA_CHECK_GET(CM_REP_SRQ, cm_rep_get_srq);
+	IBA_CHECK_SET(CM_REP_SRQ, cm_rep_set_srq);
+	IBA_CHECK_GET_BE(CM_DREQ_REMOTE_QPN_EECN, cm_dreq_get_remote_qpn);
+	IBA_CHECK_SET_BE(CM_DREQ_REMOTE_QPN_EECN, cm_dreq_set_remote_qpn);
+	IBA_CHECK_GET_BE(CM_LAP_ALTERNATE_FLOW_LABEL, cm_lap_get_flow_label);
+	IBA_CHECK_GET(CM_LAP_ALTERNATE_TRAFFIC_CLASS, cm_lap_get_traffic_class);
+	IBA_CHECK_GET(CM_LAP_ALTERNATE_PACKET_RATE, cm_lap_get_packet_rate);
+	IBA_CHECK_GET(CM_LAP_ALTERNATE_SL, cm_lap_get_sl);
+	IBA_CHECK_GET(CM_LAP_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_lap_get_local_ack_timeout);
+	IBA_CHECK_GET_BE(CM_SIDR_REP_QPN, cm_sidr_rep_get_qpn);
+	IBA_CHECK_SET_BE(CM_SIDR_REP_QPN, cm_sidr_rep_set_qpn);
+	printk("Success!\n");
+}
+
 static int __init ib_cm_init(void)
 {
 	int ret;
+
+	self_test();
 
 	INIT_LIST_HEAD(&cm.device_list);
 	rwlock_init(&cm.device_lock);
