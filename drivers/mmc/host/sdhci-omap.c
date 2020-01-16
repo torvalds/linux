@@ -86,6 +86,7 @@
 
 /* sdhci-omap controller flags */
 #define SDHCI_OMAP_REQUIRE_IODELAY	BIT(0)
+#define SDHCI_OMAP_SPECIAL_RESET	BIT(1)
 
 struct sdhci_omap_data {
 	u32 offset;
@@ -779,14 +780,34 @@ static void sdhci_omap_set_uhs_signaling(struct sdhci_host *host,
 	sdhci_omap_start_clock(omap_host);
 }
 
+#define MMC_TIMEOUT_US		20000		/* 20000 micro Sec */
 static void sdhci_omap_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_omap_host *omap_host = sdhci_pltfm_priv(pltfm_host);
+	unsigned long limit = MMC_TIMEOUT_US;
+	unsigned long i = 0;
 
 	/* Don't reset data lines during tuning operation */
 	if (omap_host->is_tuning)
 		mask &= ~SDHCI_RESET_DATA;
+
+	if (omap_host->flags & SDHCI_OMAP_SPECIAL_RESET) {
+		sdhci_writeb(host, mask, SDHCI_SOFTWARE_RESET);
+		while ((!(sdhci_readb(host, SDHCI_SOFTWARE_RESET) & mask)) &&
+		       (i++ < limit))
+			udelay(1);
+		i = 0;
+		while ((sdhci_readb(host, SDHCI_SOFTWARE_RESET) & mask) &&
+		       (i++ < limit))
+			udelay(1);
+
+		if (sdhci_readb(host, SDHCI_SOFTWARE_RESET) & mask)
+			dev_err(mmc_dev(host->mmc),
+				"Timeout waiting on controller reset in %s\n",
+				__func__);
+		return;
+	}
 
 	sdhci_reset(host, mask);
 }
@@ -900,10 +921,12 @@ static const struct sdhci_omap_data k2g_data = {
 
 static const struct sdhci_omap_data am335_data = {
 	.offset = 0x200,
+	.flags = SDHCI_OMAP_SPECIAL_RESET,
 };
 
 static const struct sdhci_omap_data am437_data = {
 	.offset = 0x200,
+	.flags = SDHCI_OMAP_SPECIAL_RESET,
 };
 
 static const struct sdhci_omap_data dra7_data = {
