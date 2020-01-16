@@ -15,9 +15,13 @@
 #include "lima_vm.h"
 
 int lima_sched_timeout_ms;
+uint lima_heap_init_nr_pages = 8;
 
 MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms");
 module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
+
+MODULE_PARM_DESC(heap_init_nr_pages, "heap buffer init number of pages");
+module_param_named(heap_init_nr_pages, lima_heap_init_nr_pages, uint, 0444);
 
 static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_file *file)
 {
@@ -68,7 +72,7 @@ static int lima_ioctl_gem_create(struct drm_device *dev, void *data, struct drm_
 	if (args->pad)
 		return -EINVAL;
 
-	if (args->flags)
+	if (args->flags & ~(LIMA_BO_FLAG_HEAP))
 		return -EINVAL;
 
 	if (args->size == 0)

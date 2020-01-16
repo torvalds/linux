@@ -155,6 +155,7 @@ err_out0:
 void lima_vm_bo_del(struct lima_vm *vm, struct lima_bo *bo)
 {
 	struct lima_bo_va *bo_va;
+	u32 size;
 
 	mutex_lock(&bo->lock);
 
@@ -166,8 +167,9 @@ void lima_vm_bo_del(struct lima_vm *vm, struct lima_bo *bo)
 
 	mutex_lock(&vm->lock);
 
+	size = bo->heap_size ? bo->heap_size : bo_va->node.size;
 	lima_vm_unmap_range(vm, bo_va->node.start,
-			    bo_va->node.start + bo_va->node.size - 1);
+			    bo_va->node.start + size - 1);
 
 	drm_mm_remove_node(&bo_va->node);
 
