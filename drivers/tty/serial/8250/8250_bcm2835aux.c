@@ -41,7 +41,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	up.port.iotype = UPIO_MEM;
 	up.port.fifosize = 8;
 	up.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT | UPF_FIXED_TYPE |
-			UPF_SKIP_TEST;
+			UPF_SKIP_TEST | UPF_IOREMAP;
 
 	/* get the clock - this also enables the HW */
 	data->clk = devm_clk_get(&pdev->dev, NULL);
@@ -64,10 +64,8 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "memory resource not found");
 		return -EINVAL;
 	}
-	up.port.membase = devm_ioremap_resource(&pdev->dev, res);
-	ret = PTR_ERR_OR_ZERO(up.port.membase);
-	if (ret)
-		return ret;
+	up.port.mapbase = res->start;
+	up.port.mapsize = resource_size(res);
 
 	/* Check for a fixed line number */
 	ret = of_alias_get_id(pdev->dev.of_node, "serial");
