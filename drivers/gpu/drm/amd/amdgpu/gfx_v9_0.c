@@ -5994,7 +5994,7 @@ static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 	int ret;
 	struct ta_ras_trigger_error_input block_info = { 0 };
 
-	if (adev->asic_type != CHIP_VEGA20)
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		return -EINVAL;
 
 	if (info->head.sub_block_index >= ARRAY_SIZE(ras_gfx_subblocks))
@@ -6245,7 +6245,7 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i, j, k;
 	uint32_t reg_value;
 
-	if (adev->asic_type != CHIP_VEGA20)
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		return -EINVAL;
 
 	err_data->ue_count = 0;
