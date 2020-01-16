@@ -345,6 +345,7 @@ enum {
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
 	GLF_INODE_CREATING		= 16, /* Inode creation occurring */
+	GLF_PENDING_DELETE		= 17,
 	GLF_FREEING			= 18, /* Wait for glock to be freed */
 };
 
@@ -378,8 +379,8 @@ struct gfs2_glock {
 	atomic_t gl_revokes;
 	struct delayed_work gl_work;
 	union {
-		/* For inode and iopen glocks only */
-		struct work_struct gl_delete;
+		/* For iopen glocks only */
+		struct delayed_work gl_delete;
 		/* For rgrp glocks only */
 		struct {
 			loff_t start;

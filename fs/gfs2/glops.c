@@ -608,9 +608,15 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 	if (gl->gl_demote_state == LM_ST_UNLOCKED &&
 	    gl->gl_state == LM_ST_SHARED && ip) {
 		gl->gl_lockref.count++;
-		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+		if (!queue_delayed_work(gfs2_delete_workqueue,
+					&gl->gl_delete, 0))
 			gl->gl_lockref.count--;
 	}
+}
+
+static int iopen_go_demote_ok(const struct gfs2_glock *gl)
+{
+       return !gfs2_delete_work_queued(gl);
 }
 
 /**
@@ -716,6 +722,7 @@ const struct gfs2_glock_operations gfs2_freeze_glops = {
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
 	.go_callback = iopen_go_callback,
+	.go_demote_ok = iopen_go_demote_ok,
 	.go_flags = GLOF_LRU | GLOF_NONDISK,
 };
 

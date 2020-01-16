@@ -626,7 +626,7 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 		}
 	}
 
-	flush_workqueue(gfs2_delete_workqueue);
+	gfs2_flush_delete_work(sdp);
 	if (!log_write_allowed && current == sdp->sd_quotad_process)
 		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
 	else if (sdp->sd_quotad_process)
@@ -1054,7 +1054,7 @@ static int gfs2_drop_inode(struct inode *inode)
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		gfs2_glock_hold(gl);
-		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+		if (!gfs2_queue_delete_work(gl, 0))
 			gfs2_glock_queue_put(gl);
 		return false;
 	}

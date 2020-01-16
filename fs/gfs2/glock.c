@@ -776,10 +776,15 @@ bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation)
 
 static void delete_work_func(struct work_struct *work)
 {
-	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct gfs2_glock *gl = container_of(dwork, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
+
+	spin_lock(&gl->gl_lockref.lock);
+	clear_bit(GLF_PENDING_DELETE, &gl->gl_flags);
+	spin_unlock(&gl->gl_lockref.lock);
 
 	/* If someone's using this glock to create a new dinode, the block must
 	   have been freed by another node, then re-used, in which case our
@@ -949,7 +954,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_object = NULL;
 	gl->gl_hold_time = GL_GLOCK_DFT_HOLD;
 	INIT_DELAYED_WORK(&gl->gl_work, glock_work_func);
-	INIT_WORK(&gl->gl_delete, delete_work_func);
+	INIT_DELAYED_WORK(&gl->gl_delete, delete_work_func);
 
 	mapping = gfs2_glock2aspace(gl);
 	if (mapping) {
@@ -1770,6 +1775,44 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 	} while (cond_resched(), gl == ERR_PTR(-EAGAIN));
 
 	rhashtable_walk_exit(&iter);
+}
+
+bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay)
+{
+	bool queued;
+
+	spin_lock(&gl->gl_lockref.lock);
+	queued = queue_delayed_work(gfs2_delete_workqueue,
+				    &gl->gl_delete, delay);
+	if (queued)
+		set_bit(GLF_PENDING_DELETE, &gl->gl_flags);
+	spin_unlock(&gl->gl_lockref.lock);
+	return queued;
+}
+
+void gfs2_cancel_delete_work(struct gfs2_glock *gl)
+{
+	if (cancel_delayed_work_sync(&gl->gl_delete)) {
+		clear_bit(GLF_PENDING_DELETE, &gl->gl_flags);
+		gfs2_glock_put(gl);
+	}
+}
+
+bool gfs2_delete_work_queued(const struct gfs2_glock *gl)
+{
+	return test_bit(GLF_PENDING_DELETE, &gl->gl_flags);
+}
+
+static void flush_delete_work(struct gfs2_glock *gl)
+{
+	flush_delayed_work(&gl->gl_delete);
+	gfs2_glock_queue_work(gl, 0);
+}
+
+void gfs2_flush_delete_work(struct gfs2_sbd *sdp)
+{
+	glock_hash_walk(flush_delete_work, sdp);
+	flush_workqueue(gfs2_delete_workqueue);
 }
 
 /**
