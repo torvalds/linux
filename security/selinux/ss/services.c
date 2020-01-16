@@ -2183,26 +2183,17 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 	int rc = 0;
 	struct policy_file file = { data, len }, *fp = &file;
 
-	oldpolicydb = kcalloc(2, sizeof(*oldpolicydb), GFP_KERNEL);
-	if (!oldpolicydb) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	newpolicydb = oldpolicydb + 1;
-
 	policydb = &state->ss->policydb;
 
 	newsidtab = kmalloc(sizeof(*newsidtab), GFP_KERNEL);
-	if (!newsidtab) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!newsidtab)
+		return -ENOMEM;
 
 	if (!selinux_initialized(state)) {
 		rc = policydb_read(policydb, fp);
 		if (rc) {
 			kfree(newsidtab);
-			goto out;
+			return rc;
 		}
 
 		policydb->len = len;
@@ -2211,14 +2202,14 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 		if (rc) {
 			kfree(newsidtab);
 			policydb_destroy(policydb);
-			goto out;
+			return rc;
 		}
 
 		rc = policydb_load_isids(policydb, newsidtab);
 		if (rc) {
 			kfree(newsidtab);
 			policydb_destroy(policydb);
-			goto out;
+			return rc;
 		}
 
 		state->ss->sidtab = newsidtab;
@@ -2231,8 +2222,15 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 		selinux_status_update_policyload(state, seqno);
 		selinux_netlbl_cache_invalidate();
 		selinux_xfrm_notify_policyload();
-		goto out;
+		return 0;
 	}
+
+	oldpolicydb = kcalloc(2, sizeof(*oldpolicydb), GFP_KERNEL);
+	if (!oldpolicydb) {
+		kfree(newsidtab);
+		return -ENOMEM;
+	}
+	newpolicydb = oldpolicydb + 1;
 
 	rc = policydb_read(newpolicydb, fp);
 	if (rc) {
