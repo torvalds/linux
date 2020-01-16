@@ -1255,23 +1255,26 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	req_msg->service_id = param->service_id;
 	req_msg->local_ca_guid = cm_id_priv->id.device->node_guid;
 	cm_req_set_local_qpn(req_msg, cpu_to_be32(param->qp_num));
-	cm_req_set_init_depth(req_msg, param->initiator_depth);
-	cm_req_set_remote_resp_timeout(req_msg,
-				       param->remote_cm_response_timeout);
+	IBA_SET(CM_REQ_INITIATOR_DEPTH, req_msg, param->initiator_depth);
+	IBA_SET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, req_msg,
+		param->remote_cm_response_timeout);
 	cm_req_set_qp_type(req_msg, param->qp_type);
-	cm_req_set_flow_ctrl(req_msg, param->flow_control);
+	IBA_SET(CM_REQ_END_TO_END_FLOW_CONTROL, req_msg, param->flow_control);
 	cm_req_set_starting_psn(req_msg, cpu_to_be32(param->starting_psn));
-	cm_req_set_local_resp_timeout(req_msg,
-				      param->local_cm_response_timeout);
+	IBA_SET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg,
+		param->local_cm_response_timeout);
 	req_msg->pkey = param->primary_path->pkey;
-	cm_req_set_path_mtu(req_msg, param->primary_path->mtu);
-	cm_req_set_max_cm_retries(req_msg, param->max_cm_retries);
+	IBA_SET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg,
+		param->primary_path->mtu);
+	IBA_SET(CM_REQ_MAX_CM_RETRIES, req_msg, param->max_cm_retries);
 
 	if (param->qp_type != IB_QPT_XRC_INI) {
-		cm_req_set_resp_res(req_msg, param->responder_resources);
-		cm_req_set_retry_count(req_msg, param->retry_count);
-		cm_req_set_rnr_retry_count(req_msg, param->rnr_retry_count);
-		cm_req_set_srq(req_msg, param->srq);
+		IBA_SET(CM_REQ_RESPONDER_RESOURCES, req_msg,
+			param->responder_resources);
+		IBA_SET(CM_REQ_RETRY_COUNT, req_msg, param->retry_count);
+		IBA_SET(CM_REQ_RNR_RETRY_COUNT, req_msg,
+			param->rnr_retry_count);
+		IBA_SET(CM_REQ_SRQ, req_msg, param->srq);
 	}
 
 	req_msg->primary_local_gid = pri_path->sgid;
@@ -1293,12 +1296,13 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 		req_msg->primary_remote_lid = IB_LID_PERMISSIVE;
 	}
 	cm_req_set_primary_flow_label(req_msg, pri_path->flow_label);
-	cm_req_set_primary_packet_rate(req_msg, pri_path->rate);
+	IBA_SET(CM_REQ_PRIMARY_PACKET_RATE, req_msg, pri_path->rate);
 	req_msg->primary_traffic_class = pri_path->traffic_class;
 	req_msg->primary_hop_limit = pri_path->hop_limit;
-	cm_req_set_primary_sl(req_msg, pri_path->sl);
-	cm_req_set_primary_subnet_local(req_msg, (pri_path->hop_limit <= 1));
-	cm_req_set_primary_local_ack_timeout(req_msg,
+	IBA_SET(CM_REQ_PRIMARY_SL, req_msg, pri_path->sl);
+	IBA_SET(CM_REQ_PRIMARY_SUBNET_LOCAL, req_msg,
+		(pri_path->hop_limit <= 1));
+	IBA_SET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, req_msg,
 		cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
 			       pri_path->packet_life_time));
 
@@ -1328,12 +1332,13 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 		}
 		cm_req_set_alt_flow_label(req_msg,
 					  alt_path->flow_label);
-		cm_req_set_alt_packet_rate(req_msg, alt_path->rate);
+		IBA_SET(CM_REQ_ALTERNATE_PACKET_RATE, req_msg, alt_path->rate);
 		req_msg->alt_traffic_class = alt_path->traffic_class;
 		req_msg->alt_hop_limit = alt_path->hop_limit;
-		cm_req_set_alt_sl(req_msg, alt_path->sl);
-		cm_req_set_alt_subnet_local(req_msg, (alt_path->hop_limit <= 1));
-		cm_req_set_alt_local_ack_timeout(req_msg,
+		IBA_SET(CM_REQ_ALTERNATE_SL, req_msg, alt_path->sl);
+		IBA_SET(CM_REQ_ALTERNATE_SUBNET_LOCAL, req_msg,
+			(alt_path->hop_limit <= 1));
+		IBA_SET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, req_msg,
 			cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
 				       alt_path->packet_life_time));
 	}
@@ -1473,11 +1478,11 @@ static int cm_issue_rej(struct cm_port *port,
 	cm_format_mad_hdr(&rej_msg->hdr, CM_REJ_ATTR_ID, rcv_msg->hdr.tid);
 	rej_msg->remote_comm_id = rcv_msg->local_comm_id;
 	rej_msg->local_comm_id = rcv_msg->remote_comm_id;
-	cm_rej_set_msg_rejected(rej_msg, msg_rejected);
+	IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg, msg_rejected);
 	rej_msg->reason = cpu_to_be16(reason);
 
 	if (ari && ari_length) {
-		cm_rej_set_reject_info_len(rej_msg, ari_length);
+		IBA_SET(CM_REJ_REJECTED_INFO_LENGTH, rej_msg, ari_length);
 		memcpy(rej_msg->ari, ari, ari_length);
 	}
 
@@ -1548,14 +1553,14 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	primary_path->traffic_class = req_msg->primary_traffic_class;
 	primary_path->reversible = 1;
 	primary_path->pkey = req_msg->pkey;
-	primary_path->sl = cm_req_get_primary_sl(req_msg);
+	primary_path->sl = IBA_GET(CM_REQ_PRIMARY_SL, req_msg);
 	primary_path->mtu_selector = IB_SA_EQ;
-	primary_path->mtu = cm_req_get_path_mtu(req_msg);
+	primary_path->mtu = IBA_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg);
 	primary_path->rate_selector = IB_SA_EQ;
-	primary_path->rate = cm_req_get_primary_packet_rate(req_msg);
+	primary_path->rate = IBA_GET(CM_REQ_PRIMARY_PACKET_RATE, req_msg);
 	primary_path->packet_life_time_selector = IB_SA_EQ;
 	primary_path->packet_life_time =
-		cm_req_get_primary_local_ack_timeout(req_msg);
+		IBA_GET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, req_msg);
 	primary_path->packet_life_time -= (primary_path->packet_life_time > 0);
 	primary_path->service_id = req_msg->service_id;
 	if (sa_path_is_roce(primary_path))
@@ -1569,14 +1574,15 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 		alt_path->traffic_class = req_msg->alt_traffic_class;
 		alt_path->reversible = 1;
 		alt_path->pkey = req_msg->pkey;
-		alt_path->sl = cm_req_get_alt_sl(req_msg);
+		alt_path->sl = IBA_GET(CM_REQ_ALTERNATE_SL, req_msg);
 		alt_path->mtu_selector = IB_SA_EQ;
-		alt_path->mtu = cm_req_get_path_mtu(req_msg);
+		alt_path->mtu =
+			IBA_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg);
 		alt_path->rate_selector = IB_SA_EQ;
-		alt_path->rate = cm_req_get_alt_packet_rate(req_msg);
+		alt_path->rate = IBA_GET(CM_REQ_ALTERNATE_PACKET_RATE, req_msg);
 		alt_path->packet_life_time_selector = IB_SA_EQ;
 		alt_path->packet_life_time =
-			cm_req_get_alt_local_ack_timeout(req_msg);
+			IBA_GET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, req_msg);
 		alt_path->packet_life_time -= (alt_path->packet_life_time > 0);
 		alt_path->service_id = req_msg->service_id;
 
@@ -1658,16 +1664,16 @@ static void cm_format_req_event(struct cm_work *work,
 	param->remote_qpn = be32_to_cpu(cm_req_get_local_qpn(req_msg));
 	param->qp_type = cm_req_get_qp_type(req_msg);
 	param->starting_psn = be32_to_cpu(cm_req_get_starting_psn(req_msg));
-	param->responder_resources = cm_req_get_init_depth(req_msg);
-	param->initiator_depth = cm_req_get_resp_res(req_msg);
+	param->responder_resources = IBA_GET(CM_REQ_INITIATOR_DEPTH, req_msg);
+	param->initiator_depth = IBA_GET(CM_REQ_RESPONDER_RESOURCES, req_msg);
 	param->local_cm_response_timeout =
-					cm_req_get_remote_resp_timeout(req_msg);
-	param->flow_control = cm_req_get_flow_ctrl(req_msg);
+		IBA_GET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, req_msg);
+	param->flow_control = IBA_GET(CM_REQ_END_TO_END_FLOW_CONTROL, req_msg);
 	param->remote_cm_response_timeout =
-					cm_req_get_local_resp_timeout(req_msg);
-	param->retry_count = cm_req_get_retry_count(req_msg);
-	param->rnr_retry_count = cm_req_get_rnr_retry_count(req_msg);
-	param->srq = cm_req_get_srq(req_msg);
+		IBA_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg);
+	param->retry_count = IBA_GET(CM_REQ_RETRY_COUNT, req_msg);
+	param->rnr_retry_count = IBA_GET(CM_REQ_RNR_RETRY_COUNT, req_msg);
+	param->srq = IBA_GET(CM_REQ_SRQ, req_msg);
 	param->ppath_sgid_attr = cm_id_priv->av.ah_attr.grh.sgid_attr;
 	work->cm_event.private_data = &req_msg->private_data;
 }
@@ -1703,10 +1709,10 @@ static void cm_format_mra(struct cm_mra_msg *mra_msg,
 			  const void *private_data, u8 private_data_len)
 {
 	cm_format_mad_hdr(&mra_msg->hdr, CM_MRA_ATTR_ID, cm_id_priv->tid);
-	cm_mra_set_msg_mraed(mra_msg, msg_mraed);
+	IBA_SET(CM_MRA_MESSAGE_MRAED, mra_msg, msg_mraed);
 	mra_msg->local_comm_id = cm_id_priv->id.local_id;
 	mra_msg->remote_comm_id = cm_id_priv->id.remote_id;
-	cm_mra_set_service_timeout(mra_msg, service_timeout);
+	IBA_SET(CM_MRA_SERVICE_TIMEOUT, mra_msg, service_timeout);
 
 	if (private_data && private_data_len)
 		memcpy(mra_msg->private_data, private_data, private_data_len);
@@ -1726,26 +1732,27 @@ static void cm_format_rej(struct cm_rej_msg *rej_msg,
 	switch(cm_id_priv->id.state) {
 	case IB_CM_REQ_RCVD:
 		rej_msg->local_comm_id = 0;
-		cm_rej_set_msg_rejected(rej_msg, CM_MSG_RESPONSE_REQ);
+		IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg, CM_MSG_RESPONSE_REQ);
 		break;
 	case IB_CM_MRA_REQ_SENT:
 		rej_msg->local_comm_id = cm_id_priv->id.local_id;
-		cm_rej_set_msg_rejected(rej_msg, CM_MSG_RESPONSE_REQ);
+		IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg, CM_MSG_RESPONSE_REQ);
 		break;
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
 		rej_msg->local_comm_id = cm_id_priv->id.local_id;
-		cm_rej_set_msg_rejected(rej_msg, CM_MSG_RESPONSE_REP);
+		IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg, CM_MSG_RESPONSE_REP);
 		break;
 	default:
 		rej_msg->local_comm_id = cm_id_priv->id.local_id;
-		cm_rej_set_msg_rejected(rej_msg, CM_MSG_RESPONSE_OTHER);
+		IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg,
+			CM_MSG_RESPONSE_OTHER);
 		break;
 	}
 
 	rej_msg->reason = cpu_to_be16(reason);
 	if (ari && ari_length) {
-		cm_rej_set_reject_info_len(rej_msg, ari_length);
+		IBA_SET(CM_REJ_REJECTED_INFO_LENGTH, rej_msg, ari_length);
 		memcpy(rej_msg->ari, ari, ari_length);
 	}
 
@@ -1866,20 +1873,20 @@ out:
  */
 static void cm_process_routed_req(struct cm_req_msg *req_msg, struct ib_wc *wc)
 {
-	if (!cm_req_get_primary_subnet_local(req_msg)) {
+	if (!IBA_GET(CM_REQ_PRIMARY_SUBNET_LOCAL, req_msg)) {
 		if (req_msg->primary_local_lid == IB_LID_PERMISSIVE) {
 			req_msg->primary_local_lid = ib_lid_be16(wc->slid);
-			cm_req_set_primary_sl(req_msg, wc->sl);
+			IBA_SET(CM_REQ_PRIMARY_SL, req_msg, wc->sl);
 		}
 
 		if (req_msg->primary_remote_lid == IB_LID_PERMISSIVE)
 			req_msg->primary_remote_lid = cpu_to_be16(wc->dlid_path_bits);
 	}
 
-	if (!cm_req_get_alt_subnet_local(req_msg)) {
+	if (!IBA_GET(CM_REQ_ALTERNATE_SUBNET_LOCAL, req_msg)) {
 		if (req_msg->alt_local_lid == IB_LID_PERMISSIVE) {
 			req_msg->alt_local_lid = ib_lid_be16(wc->slid);
-			cm_req_set_alt_sl(req_msg, wc->sl);
+			IBA_SET(CM_REQ_ALTERNATE_SL, req_msg, wc->sl);
 		}
 
 		if (req_msg->alt_remote_lid == IB_LID_PERMISSIVE)
@@ -1989,16 +1996,18 @@ static int cm_req_handler(struct cm_work *work)
 	}
 	cm_id_priv->tid = req_msg->hdr.tid;
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
-					cm_req_get_local_resp_timeout(req_msg));
-	cm_id_priv->max_cm_retries = cm_req_get_max_cm_retries(req_msg);
+		IBA_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg));
+	cm_id_priv->max_cm_retries = IBA_GET(CM_REQ_MAX_CM_RETRIES, req_msg);
 	cm_id_priv->remote_qpn = cm_req_get_local_qpn(req_msg);
-	cm_id_priv->initiator_depth = cm_req_get_resp_res(req_msg);
-	cm_id_priv->responder_resources = cm_req_get_init_depth(req_msg);
-	cm_id_priv->path_mtu = cm_req_get_path_mtu(req_msg);
+	cm_id_priv->initiator_depth =
+		IBA_GET(CM_REQ_RESPONDER_RESOURCES, req_msg);
+	cm_id_priv->responder_resources =
+		IBA_GET(CM_REQ_INITIATOR_DEPTH, req_msg);
+	cm_id_priv->path_mtu = IBA_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg);
 	cm_id_priv->pkey = req_msg->pkey;
 	cm_id_priv->sq_psn = cm_req_get_starting_psn(req_msg);
-	cm_id_priv->retry_count = cm_req_get_retry_count(req_msg);
-	cm_id_priv->rnr_retry_count = cm_req_get_rnr_retry_count(req_msg);
+	cm_id_priv->retry_count = IBA_GET(CM_REQ_RETRY_COUNT, req_msg);
+	cm_id_priv->rnr_retry_count = IBA_GET(CM_REQ_RNR_RETRY_COUNT, req_msg);
 	cm_id_priv->qp_type = cm_req_get_qp_type(req_msg);
 
 	cm_format_req_event(work, cm_id_priv, &listen_cm_id_priv->id);
@@ -2025,19 +2034,20 @@ static void cm_format_rep(struct cm_rep_msg *rep_msg,
 	rep_msg->remote_comm_id = cm_id_priv->id.remote_id;
 	cm_rep_set_starting_psn(rep_msg, cpu_to_be32(param->starting_psn));
 	rep_msg->resp_resources = param->responder_resources;
-	cm_rep_set_target_ack_delay(rep_msg,
-				    cm_id_priv->av.port->cm_dev->ack_delay);
-	cm_rep_set_failover(rep_msg, param->failover_accepted);
-	cm_rep_set_rnr_retry_count(rep_msg, param->rnr_retry_count);
+	IBA_SET(CM_REP_TARGET_ACK_DELAY, rep_msg,
+		cm_id_priv->av.port->cm_dev->ack_delay);
+	IBA_SET(CM_REP_FAILOVER_ACCEPTED, rep_msg, param->failover_accepted);
+	IBA_SET(CM_REP_RNR_RETRY_COUNT, rep_msg, param->rnr_retry_count);
 	rep_msg->local_ca_guid = cm_id_priv->id.device->node_guid;
 
 	if (cm_id_priv->qp_type != IB_QPT_XRC_TGT) {
 		rep_msg->initiator_depth = param->initiator_depth;
-		cm_rep_set_flow_ctrl(rep_msg, param->flow_control);
-		cm_rep_set_srq(rep_msg, param->srq);
+		IBA_SET(CM_REP_END_TO_END_FLOW_CONTROL, rep_msg,
+			param->flow_control);
+		IBA_SET(CM_REP_SRQ, rep_msg, param->srq);
 		cm_rep_set_local_qpn(rep_msg, cpu_to_be32(param->qp_num));
 	} else {
-		cm_rep_set_srq(rep_msg, 1);
+		IBA_SET(CM_REP_SRQ, rep_msg, 1);
 		cm_rep_set_local_eecn(rep_msg, cpu_to_be32(param->qp_num));
 	}
 
@@ -2176,11 +2186,11 @@ static void cm_format_rep_event(struct cm_work *work, enum ib_qp_type qp_type)
 	param->starting_psn = be32_to_cpu(cm_rep_get_starting_psn(rep_msg));
 	param->responder_resources = rep_msg->initiator_depth;
 	param->initiator_depth = rep_msg->resp_resources;
-	param->target_ack_delay = cm_rep_get_target_ack_delay(rep_msg);
-	param->failover_accepted = cm_rep_get_failover(rep_msg);
-	param->flow_control = cm_rep_get_flow_ctrl(rep_msg);
-	param->rnr_retry_count = cm_rep_get_rnr_retry_count(rep_msg);
-	param->srq = cm_rep_get_srq(rep_msg);
+	param->target_ack_delay = IBA_GET(CM_REP_TARGET_ACK_DELAY, rep_msg);
+	param->failover_accepted = IBA_GET(CM_REP_FAILOVER_ACCEPTED, rep_msg);
+	param->flow_control = IBA_GET(CM_REP_END_TO_END_FLOW_CONTROL, rep_msg);
+	param->rnr_retry_count = IBA_GET(CM_REP_RNR_RETRY_COUNT, rep_msg);
+	param->srq = IBA_GET(CM_REP_SRQ, rep_msg);
 	work->cm_event.private_data = &rep_msg->private_data;
 }
 
@@ -2311,8 +2321,9 @@ static int cm_rep_handler(struct cm_work *work)
 	cm_id_priv->initiator_depth = rep_msg->resp_resources;
 	cm_id_priv->responder_resources = rep_msg->initiator_depth;
 	cm_id_priv->sq_psn = cm_rep_get_starting_psn(rep_msg);
-	cm_id_priv->rnr_retry_count = cm_rep_get_rnr_retry_count(rep_msg);
-	cm_id_priv->target_ack_delay = cm_rep_get_target_ack_delay(rep_msg);
+	cm_id_priv->rnr_retry_count = IBA_GET(CM_REP_RNR_RETRY_COUNT, rep_msg);
+	cm_id_priv->target_ack_delay =
+		IBA_GET(CM_REP_TARGET_ACK_DELAY, rep_msg);
 	cm_id_priv->av.timeout =
 			cm_ack_timeout(cm_id_priv->target_ack_delay,
 				       cm_id_priv->av.timeout - 1);
@@ -2756,7 +2767,7 @@ static void cm_format_rej_event(struct cm_work *work)
 	rej_msg = (struct cm_rej_msg *)work->mad_recv_wc->recv_buf.mad;
 	param = &work->cm_event.param.rej_rcvd;
 	param->ari = rej_msg->ari;
-	param->ari_length = cm_rej_get_reject_info_len(rej_msg);
+	param->ari_length = IBA_GET(CM_REJ_REJECTED_INFO_LENGTH, rej_msg);
 	param->reason = __be16_to_cpu(rej_msg->reason);
 	work->cm_event.private_data = &rej_msg->private_data;
 }
@@ -2780,7 +2791,8 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 		cm_id_priv =
 			cm_acquire_id(timewait_info->work.local_id, remote_id);
 		spin_unlock_irq(&cm.lock);
-	} else if (cm_rej_get_msg_rejected(rej_msg) == CM_MSG_RESPONSE_REQ)
+	} else if (IBA_GET(CM_REJ_MESSAGE_REJECTED, rej_msg) ==
+		   CM_MSG_RESPONSE_REQ)
 		cm_id_priv = cm_acquire_id(rej_msg->remote_comm_id, 0);
 	else
 		cm_id_priv = cm_acquire_id(rej_msg->remote_comm_id, remote_id);
@@ -2941,7 +2953,7 @@ EXPORT_SYMBOL(ib_send_cm_mra);
 
 static struct cm_id_private * cm_acquire_mraed_id(struct cm_mra_msg *mra_msg)
 {
-	switch (cm_mra_get_msg_mraed(mra_msg)) {
+	switch (IBA_GET(CM_MRA_MESSAGE_MRAED, mra_msg)) {
 	case CM_MSG_RESPONSE_REQ:
 		return cm_acquire_id(mra_msg->remote_comm_id, 0);
 	case CM_MSG_RESPONSE_REP:
@@ -2966,28 +2978,31 @@ static int cm_mra_handler(struct cm_work *work)
 
 	work->cm_event.private_data = &mra_msg->private_data;
 	work->cm_event.param.mra_rcvd.service_timeout =
-					cm_mra_get_service_timeout(mra_msg);
-	timeout = cm_convert_to_ms(cm_mra_get_service_timeout(mra_msg)) +
+		IBA_GET(CM_MRA_SERVICE_TIMEOUT, mra_msg);
+	timeout = cm_convert_to_ms(IBA_GET(CM_MRA_SERVICE_TIMEOUT, mra_msg)) +
 		  cm_convert_to_ms(cm_id_priv->av.timeout);
 
 	spin_lock_irq(&cm_id_priv->lock);
 	switch (cm_id_priv->id.state) {
 	case IB_CM_REQ_SENT:
-		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_REQ ||
+		if (IBA_GET(CM_MRA_MESSAGE_MRAED, mra_msg) !=
+			    CM_MSG_RESPONSE_REQ ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
 				  cm_id_priv->msg, timeout))
 			goto out;
 		cm_id_priv->id.state = IB_CM_MRA_REQ_RCVD;
 		break;
 	case IB_CM_REP_SENT:
-		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_REP ||
+		if (IBA_GET(CM_MRA_MESSAGE_MRAED, mra_msg) !=
+			    CM_MSG_RESPONSE_REP ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
 				  cm_id_priv->msg, timeout))
 			goto out;
 		cm_id_priv->id.state = IB_CM_MRA_REP_RCVD;
 		break;
 	case IB_CM_ESTABLISHED:
-		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_OTHER ||
+		if (IBA_GET(CM_MRA_MESSAGE_MRAED, mra_msg) !=
+			    CM_MSG_RESPONSE_OTHER ||
 		    cm_id_priv->id.lap_state != IB_CM_LAP_SENT ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
 				  cm_id_priv->msg, timeout)) {
@@ -3054,16 +3069,17 @@ static void cm_format_path_from_lap(struct cm_id_private *cm_id_priv,
 	path->sgid = lap_msg->alt_remote_gid;
 	path->flow_label = cm_lap_get_flow_label(lap_msg);
 	path->hop_limit = lap_msg->alt_hop_limit;
-	path->traffic_class = cm_lap_get_traffic_class(lap_msg);
+	path->traffic_class = IBA_GET(CM_LAP_ALTERNATE_TRAFFIC_CLASS, lap_msg);
 	path->reversible = 1;
 	path->pkey = cm_id_priv->pkey;
-	path->sl = cm_lap_get_sl(lap_msg);
+	path->sl = IBA_GET(CM_LAP_ALTERNATE_SL, lap_msg);
 	path->mtu_selector = IB_SA_EQ;
 	path->mtu = cm_id_priv->path_mtu;
 	path->rate_selector = IB_SA_EQ;
-	path->rate = cm_lap_get_packet_rate(lap_msg);
+	path->rate = IBA_GET(CM_LAP_ALTERNATE_PACKET_RATE, lap_msg);
 	path->packet_life_time_selector = IB_SA_EQ;
-	path->packet_life_time = cm_lap_get_local_ack_timeout(lap_msg);
+	path->packet_life_time =
+		IBA_GET(CM_LAP_ALTERNATE_LOCAL_ACK_TIMEOUT, lap_msg);
 	path->packet_life_time -= (path->packet_life_time > 0);
 	cm_format_path_lid_from_lap(lap_msg, path);
 }
@@ -4436,83 +4452,21 @@ static void self_test(void)
 	printk("Running CM extractor self test\n");
 	IBA_CHECK_GET_BE(CM_REQ_LOCAL_QPN, cm_req_get_local_qpn);
 	IBA_CHECK_SET_BE(CM_REQ_LOCAL_QPN, cm_req_set_local_qpn);
-	IBA_CHECK_GET(CM_REQ_RESPONDER_RESOURCES, cm_req_get_resp_res);
-	IBA_CHECK_SET(CM_REQ_RESPONDER_RESOURCES, cm_req_set_resp_res);
-	IBA_CHECK_GET(CM_REQ_INITIATOR_DEPTH, cm_req_get_init_depth);
-	IBA_CHECK_SET(CM_REQ_INITIATOR_DEPTH, cm_req_set_init_depth);
-	IBA_CHECK_GET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, cm_req_get_remote_resp_timeout);
-	IBA_CHECK_SET(CM_REQ_REMOTE_CM_RESPONSE_TIMEOUT, cm_req_set_remote_resp_timeout);
-	IBA_CHECK_GET(CM_REQ_TRANSPORT_SERVICE_TYPE, cm_req_get_transport_type);
-	IBA_CHECK_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, cm_req_set_transport_type);
-	IBA_CHECK_GET(CM_REQ_END_TO_END_FLOW_CONTROL, cm_req_get_flow_ctrl);
-	IBA_CHECK_SET(CM_REQ_END_TO_END_FLOW_CONTROL, cm_req_set_flow_ctrl);
 	IBA_CHECK_GET_BE(CM_REQ_STARTING_PSN, cm_req_get_starting_psn);
 	IBA_CHECK_SET_BE(CM_REQ_STARTING_PSN, cm_req_set_starting_psn);
-	IBA_CHECK_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, cm_req_get_local_resp_timeout);
-	IBA_CHECK_SET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, cm_req_set_local_resp_timeout);
-	IBA_CHECK_GET(CM_REQ_RETRY_COUNT, cm_req_get_retry_count);
-	IBA_CHECK_SET(CM_REQ_RETRY_COUNT, cm_req_set_retry_count);
-	IBA_CHECK_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, cm_req_get_path_mtu);
-	IBA_CHECK_SET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, cm_req_set_path_mtu);
-	IBA_CHECK_GET(CM_REQ_RNR_RETRY_COUNT, cm_req_get_rnr_retry_count);
-	IBA_CHECK_SET(CM_REQ_RNR_RETRY_COUNT, cm_req_set_rnr_retry_count);
-	IBA_CHECK_GET(CM_REQ_MAX_CM_RETRIES, cm_req_get_max_cm_retries);
-	IBA_CHECK_SET(CM_REQ_MAX_CM_RETRIES, cm_req_set_max_cm_retries);
-	IBA_CHECK_GET(CM_REQ_SRQ, cm_req_get_srq);
-	IBA_CHECK_SET(CM_REQ_SRQ, cm_req_set_srq);
-	IBA_CHECK_GET(CM_REQ_EXTENDED_TRANSPORT_TYPE, cm_req_get_transport_type_ex);
-	IBA_CHECK_SET(CM_REQ_EXTENDED_TRANSPORT_TYPE, cm_req_set_transport_type_ex);
 	IBA_CHECK_GET_BE(CM_REQ_PRIMARY_FLOW_LABEL, cm_req_get_primary_flow_label);
 	IBA_CHECK_SET_BE(CM_REQ_PRIMARY_FLOW_LABEL, cm_req_set_primary_flow_label);
-	IBA_CHECK_GET(CM_REQ_PRIMARY_PACKET_RATE, cm_req_get_primary_packet_rate);
-	IBA_CHECK_SET(CM_REQ_PRIMARY_PACKET_RATE, cm_req_set_primary_packet_rate);
-	IBA_CHECK_GET(CM_REQ_PRIMARY_SL, cm_req_get_primary_sl);
-	IBA_CHECK_SET(CM_REQ_PRIMARY_SL, cm_req_set_primary_sl);
-	IBA_CHECK_GET(CM_REQ_PRIMARY_SUBNET_LOCAL, cm_req_get_primary_subnet_local);
-	IBA_CHECK_SET(CM_REQ_PRIMARY_SUBNET_LOCAL, cm_req_set_primary_subnet_local);
-	IBA_CHECK_GET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, cm_req_get_primary_local_ack_timeout);
-	IBA_CHECK_SET(CM_REQ_PRIMARY_LOCAL_ACK_TIMEOUT, cm_req_set_primary_local_ack_timeout);
 	IBA_CHECK_GET_BE(CM_REQ_ALTERNATE_FLOW_LABEL, cm_req_get_alt_flow_label);
 	IBA_CHECK_SET_BE(CM_REQ_ALTERNATE_FLOW_LABEL, cm_req_set_alt_flow_label);
-	IBA_CHECK_GET(CM_REQ_ALTERNATE_PACKET_RATE, cm_req_get_alt_packet_rate);
-	IBA_CHECK_SET(CM_REQ_ALTERNATE_PACKET_RATE, cm_req_set_alt_packet_rate);
-	IBA_CHECK_GET(CM_REQ_ALTERNATE_SL, cm_req_get_alt_sl);
-	IBA_CHECK_SET(CM_REQ_ALTERNATE_SL, cm_req_set_alt_sl);
-	IBA_CHECK_GET(CM_REQ_ALTERNATE_SUBNET_LOCAL, cm_req_get_alt_subnet_local);
-	IBA_CHECK_SET(CM_REQ_ALTERNATE_SUBNET_LOCAL, cm_req_set_alt_subnet_local);
-	IBA_CHECK_GET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_req_get_alt_local_ack_timeout);
-	IBA_CHECK_SET(CM_REQ_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_req_set_alt_local_ack_timeout);
-	IBA_CHECK_GET(CM_MRA_MESSAGE_MRAED, cm_mra_get_msg_mraed);
-	IBA_CHECK_SET(CM_MRA_MESSAGE_MRAED, cm_mra_set_msg_mraed);
-	IBA_CHECK_GET(CM_MRA_SERVICE_TIMEOUT, cm_mra_get_service_timeout);
-	IBA_CHECK_SET(CM_MRA_SERVICE_TIMEOUT, cm_mra_set_service_timeout);
-	IBA_CHECK_GET(CM_REJ_MESSAGE_REJECTED, cm_rej_get_msg_rejected);
-	IBA_CHECK_SET(CM_REJ_MESSAGE_REJECTED, cm_rej_set_msg_rejected);
-	IBA_CHECK_GET(CM_REJ_REJECTED_INFO_LENGTH, cm_rej_get_reject_info_len);
-	IBA_CHECK_SET(CM_REJ_REJECTED_INFO_LENGTH, cm_rej_set_reject_info_len);
 	IBA_CHECK_GET_BE(CM_REP_LOCAL_QPN, cm_rep_get_local_qpn);
 	IBA_CHECK_SET_BE(CM_REP_LOCAL_QPN, cm_rep_set_local_qpn);
 	IBA_CHECK_GET_BE(CM_REP_LOCAL_EE_CONTEXT_NUMBER, cm_rep_get_local_eecn);
 	IBA_CHECK_SET_BE(CM_REP_LOCAL_EE_CONTEXT_NUMBER, cm_rep_set_local_eecn);
 	IBA_CHECK_GET_BE(CM_REP_STARTING_PSN, cm_rep_get_starting_psn);
 	IBA_CHECK_SET_BE(CM_REP_STARTING_PSN, cm_rep_set_starting_psn);
-	IBA_CHECK_GET(CM_REP_TARGET_ACK_DELAY, cm_rep_get_target_ack_delay);
-	IBA_CHECK_SET(CM_REP_TARGET_ACK_DELAY, cm_rep_set_target_ack_delay);
-	IBA_CHECK_GET(CM_REP_FAILOVER_ACCEPTED, cm_rep_get_failover);
-	IBA_CHECK_SET(CM_REP_FAILOVER_ACCEPTED, cm_rep_set_failover);
-	IBA_CHECK_GET(CM_REP_END_TO_END_FLOW_CONTROL, cm_rep_get_flow_ctrl);
-	IBA_CHECK_SET(CM_REP_END_TO_END_FLOW_CONTROL, cm_rep_set_flow_ctrl);
-	IBA_CHECK_GET(CM_REP_RNR_RETRY_COUNT, cm_rep_get_rnr_retry_count);
-	IBA_CHECK_SET(CM_REP_RNR_RETRY_COUNT, cm_rep_set_rnr_retry_count);
-	IBA_CHECK_GET(CM_REP_SRQ, cm_rep_get_srq);
-	IBA_CHECK_SET(CM_REP_SRQ, cm_rep_set_srq);
 	IBA_CHECK_GET_BE(CM_DREQ_REMOTE_QPN_EECN, cm_dreq_get_remote_qpn);
 	IBA_CHECK_SET_BE(CM_DREQ_REMOTE_QPN_EECN, cm_dreq_set_remote_qpn);
 	IBA_CHECK_GET_BE(CM_LAP_ALTERNATE_FLOW_LABEL, cm_lap_get_flow_label);
-	IBA_CHECK_GET(CM_LAP_ALTERNATE_TRAFFIC_CLASS, cm_lap_get_traffic_class);
-	IBA_CHECK_GET(CM_LAP_ALTERNATE_PACKET_RATE, cm_lap_get_packet_rate);
-	IBA_CHECK_GET(CM_LAP_ALTERNATE_SL, cm_lap_get_sl);
-	IBA_CHECK_GET(CM_LAP_ALTERNATE_LOCAL_ACK_TIMEOUT, cm_lap_get_local_ack_timeout);
 	IBA_CHECK_GET_BE(CM_SIDR_REP_QPN, cm_sidr_rep_get_qpn);
 	IBA_CHECK_SET_BE(CM_SIDR_REP_QPN, cm_sidr_rep_set_qpn);
 	printk("Success!\n");

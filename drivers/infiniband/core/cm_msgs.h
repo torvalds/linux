@@ -87,75 +87,14 @@ static inline void cm_req_set_local_qpn(struct cm_req_msg *req_msg, __be32 qpn)
 					  0x000000FF));
 }
 
-static inline u8 cm_req_get_resp_res(struct cm_req_msg *req_msg)
-{
-	return (u8) be32_to_cpu(req_msg->offset32);
-}
-
-static inline void cm_req_set_resp_res(struct cm_req_msg *req_msg, u8 resp_res)
-{
-	req_msg->offset32 = cpu_to_be32(resp_res |
-					(be32_to_cpu(req_msg->offset32) &
-					 0xFFFFFF00));
-}
-
-static inline u8 cm_req_get_init_depth(struct cm_req_msg *req_msg)
-{
-	return (u8) be32_to_cpu(req_msg->offset36);
-}
-
-static inline void cm_req_set_init_depth(struct cm_req_msg *req_msg,
-					 u8 init_depth)
-{
-	req_msg->offset36 = cpu_to_be32(init_depth |
-					(be32_to_cpu(req_msg->offset36) &
-					 0xFFFFFF00));
-}
-
-static inline u8 cm_req_get_remote_resp_timeout(struct cm_req_msg *req_msg)
-{
-	return (u8) ((be32_to_cpu(req_msg->offset40) & 0xF8) >> 3);
-}
-
-static inline void cm_req_set_remote_resp_timeout(struct cm_req_msg *req_msg,
-						  u8 resp_timeout)
-{
-	req_msg->offset40 = cpu_to_be32((resp_timeout << 3) |
-					 (be32_to_cpu(req_msg->offset40) &
-					  0xFFFFFF07));
-}
-
-static inline u8 cm_req_get_transport_type(struct cm_req_msg *req_msg)
-{
-	return (u8) ((be32_to_cpu(req_msg->offset40) & 0x06) >> 1);
-}
-
-static inline void cm_req_set_transport_type(struct cm_req_msg *req_msg, u8 val)
-{
-	req_msg->offset40 =
-		cpu_to_be32((be32_to_cpu(req_msg->offset40) & 0xFFFFFFF9) |
-		(val << 1));
-}
-
-static inline u8 cm_req_get_transport_type_ex(struct cm_req_msg *req_msg)
-{
-	return req_msg->offset51 & 0x7;
-}
-
-static inline void cm_req_set_transport_type_ex(struct cm_req_msg *req_msg,
-						u8 val)
-{
-	req_msg->offset51 = (req_msg->offset51 & 0xF8) | val;
-}
-
 static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 {
-	u8 transport_type = cm_req_get_transport_type(req_msg);
+	u8 transport_type = IBA_GET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg);
 	switch(transport_type) {
 	case 0: return IB_QPT_RC;
 	case 1: return IB_QPT_UC;
 	case 3:
-		switch (cm_req_get_transport_type_ex(req_msg)) {
+		switch (IBA_GET(CM_REQ_EXTENDED_TRANSPORT_TYPE, req_msg)) {
 		case 1: return IB_QPT_XRC_TGT;
 		default: return 0;
 		}
@@ -168,28 +107,15 @@ static inline void cm_req_set_qp_type(struct cm_req_msg *req_msg,
 {
 	switch(qp_type) {
 	case IB_QPT_UC:
-		cm_req_set_transport_type(req_msg, 1);
+		IBA_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg, 1);
 		break;
 	case IB_QPT_XRC_INI:
-		cm_req_set_transport_type(req_msg, 3);
-		cm_req_set_transport_type_ex(req_msg, 1);
+		IBA_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg, 3);
+		IBA_SET(CM_REQ_EXTENDED_TRANSPORT_TYPE, req_msg, 1);
 		break;
 	default:
-		cm_req_set_transport_type(req_msg, 0);
+		IBA_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg, 0);
 	}
-}
-
-static inline u8 cm_req_get_flow_ctrl(struct cm_req_msg *req_msg)
-{
-	return be32_to_cpu(req_msg->offset40) & 0x1;
-}
-
-static inline void cm_req_set_flow_ctrl(struct cm_req_msg *req_msg,
-					u8 flow_ctrl)
-{
-	req_msg->offset40 = cpu_to_be32((flow_ctrl & 0x1) |
-					 (be32_to_cpu(req_msg->offset40) &
-					  0xFFFFFFFE));
 }
 
 static inline __be32 cm_req_get_starting_psn(struct cm_req_msg *req_msg)
@@ -202,74 +128,6 @@ static inline void cm_req_set_starting_psn(struct cm_req_msg *req_msg,
 {
 	req_msg->offset44 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
 			    (be32_to_cpu(req_msg->offset44) & 0x000000FF));
-}
-
-static inline u8 cm_req_get_local_resp_timeout(struct cm_req_msg *req_msg)
-{
-	return (u8) ((be32_to_cpu(req_msg->offset44) & 0xF8) >> 3);
-}
-
-static inline void cm_req_set_local_resp_timeout(struct cm_req_msg *req_msg,
-						 u8 resp_timeout)
-{
-	req_msg->offset44 = cpu_to_be32((resp_timeout << 3) |
-			    (be32_to_cpu(req_msg->offset44) & 0xFFFFFF07));
-}
-
-static inline u8 cm_req_get_retry_count(struct cm_req_msg *req_msg)
-{
-	return (u8) (be32_to_cpu(req_msg->offset44) & 0x7);
-}
-
-static inline void cm_req_set_retry_count(struct cm_req_msg *req_msg,
-					  u8 retry_count)
-{
-	req_msg->offset44 = cpu_to_be32((retry_count & 0x7) |
-			    (be32_to_cpu(req_msg->offset44) & 0xFFFFFFF8));
-}
-
-static inline u8 cm_req_get_path_mtu(struct cm_req_msg *req_msg)
-{
-	return req_msg->offset50 >> 4;
-}
-
-static inline void cm_req_set_path_mtu(struct cm_req_msg *req_msg, u8 path_mtu)
-{
-	req_msg->offset50 = (u8) ((req_msg->offset50 & 0xF) | (path_mtu << 4));
-}
-
-static inline u8 cm_req_get_rnr_retry_count(struct cm_req_msg *req_msg)
-{
-	return req_msg->offset50 & 0x7;
-}
-
-static inline void cm_req_set_rnr_retry_count(struct cm_req_msg *req_msg,
-					      u8 rnr_retry_count)
-{
-	req_msg->offset50 = (u8) ((req_msg->offset50 & 0xF8) |
-				  (rnr_retry_count & 0x7));
-}
-
-static inline u8 cm_req_get_max_cm_retries(struct cm_req_msg *req_msg)
-{
-	return req_msg->offset51 >> 4;
-}
-
-static inline void cm_req_set_max_cm_retries(struct cm_req_msg *req_msg,
-					     u8 retries)
-{
-	req_msg->offset51 = (u8) ((req_msg->offset51 & 0xF) | (retries << 4));
-}
-
-static inline u8 cm_req_get_srq(struct cm_req_msg *req_msg)
-{
-	return (req_msg->offset51 & 0x8) >> 3;
-}
-
-static inline void cm_req_set_srq(struct cm_req_msg *req_msg, u8 srq)
-{
-	req_msg->offset51 = (u8) ((req_msg->offset51 & 0xF7) |
-				  ((srq & 0x1) << 3));
 }
 
 static inline __be32 cm_req_get_primary_flow_label(struct cm_req_msg *req_msg)
@@ -286,54 +144,6 @@ static inline void cm_req_set_primary_flow_label(struct cm_req_msg *req_msg,
 				     (be32_to_cpu(flow_label) << 12));
 }
 
-static inline u8 cm_req_get_primary_packet_rate(struct cm_req_msg *req_msg)
-{
-	return (u8) (be32_to_cpu(req_msg->primary_offset88) & 0x3F);
-}
-
-static inline void cm_req_set_primary_packet_rate(struct cm_req_msg *req_msg,
-						  u8 rate)
-{
-	req_msg->primary_offset88 = cpu_to_be32(
-				    (be32_to_cpu(req_msg->primary_offset88) &
-				     0xFFFFFFC0) | (rate & 0x3F));
-}
-
-static inline u8 cm_req_get_primary_sl(struct cm_req_msg *req_msg)
-{
-	return (u8) (req_msg->primary_offset94 >> 4);
-}
-
-static inline void cm_req_set_primary_sl(struct cm_req_msg *req_msg, u8 sl)
-{
-	req_msg->primary_offset94 = (u8) ((req_msg->primary_offset94 & 0x0F) |
-					  (sl << 4));
-}
-
-static inline u8 cm_req_get_primary_subnet_local(struct cm_req_msg *req_msg)
-{
-	return (u8) ((req_msg->primary_offset94 & 0x08) >> 3);
-}
-
-static inline void cm_req_set_primary_subnet_local(struct cm_req_msg *req_msg,
-						   u8 subnet_local)
-{
-	req_msg->primary_offset94 = (u8) ((req_msg->primary_offset94 & 0xF7) |
-					  ((subnet_local & 0x1) << 3));
-}
-
-static inline u8 cm_req_get_primary_local_ack_timeout(struct cm_req_msg *req_msg)
-{
-	return (u8) (req_msg->primary_offset95 >> 3);
-}
-
-static inline void cm_req_set_primary_local_ack_timeout(struct cm_req_msg *req_msg,
-							u8 local_ack_timeout)
-{
-	req_msg->primary_offset95 = (u8) ((req_msg->primary_offset95 & 0x07) |
-					  (local_ack_timeout << 3));
-}
-
 static inline __be32 cm_req_get_alt_flow_label(struct cm_req_msg *req_msg)
 {
 	return cpu_to_be32(be32_to_cpu(req_msg->alt_offset132) >> 12);
@@ -346,54 +156,6 @@ static inline void cm_req_set_alt_flow_label(struct cm_req_msg *req_msg,
 				 (be32_to_cpu(req_msg->alt_offset132) &
 				  0x00000FFF) |
 				  (be32_to_cpu(flow_label) << 12));
-}
-
-static inline u8 cm_req_get_alt_packet_rate(struct cm_req_msg *req_msg)
-{
-	return (u8) (be32_to_cpu(req_msg->alt_offset132) & 0x3F);
-}
-
-static inline void cm_req_set_alt_packet_rate(struct cm_req_msg *req_msg,
-					      u8 rate)
-{
-	req_msg->alt_offset132 = cpu_to_be32(
-				 (be32_to_cpu(req_msg->alt_offset132) &
-				  0xFFFFFFC0) | (rate & 0x3F));
-}
-
-static inline u8 cm_req_get_alt_sl(struct cm_req_msg *req_msg)
-{
-	return (u8) (req_msg->alt_offset138 >> 4);
-}
-
-static inline void cm_req_set_alt_sl(struct cm_req_msg *req_msg, u8 sl)
-{
-	req_msg->alt_offset138 = (u8) ((req_msg->alt_offset138 & 0x0F) |
-				       (sl << 4));
-}
-
-static inline u8 cm_req_get_alt_subnet_local(struct cm_req_msg *req_msg)
-{
-	return (u8) ((req_msg->alt_offset138 & 0x08) >> 3);
-}
-
-static inline void cm_req_set_alt_subnet_local(struct cm_req_msg *req_msg,
-					       u8 subnet_local)
-{
-	req_msg->alt_offset138 = (u8) ((req_msg->alt_offset138 & 0xF7) |
-				       ((subnet_local & 0x1) << 3));
-}
-
-static inline u8 cm_req_get_alt_local_ack_timeout(struct cm_req_msg *req_msg)
-{
-	return (u8) (req_msg->alt_offset139 >> 3);
-}
-
-static inline void cm_req_set_alt_local_ack_timeout(struct cm_req_msg *req_msg,
-						    u8 local_ack_timeout)
-{
-	req_msg->alt_offset139 = (u8) ((req_msg->alt_offset139 & 0x07) |
-				       (local_ack_timeout << 3));
 }
 
 /* Message REJected or MRAed */
@@ -417,28 +179,6 @@ enum cm_msg_response {
 
 } __packed;
 
-static inline u8 cm_mra_get_msg_mraed(struct cm_mra_msg *mra_msg)
-{
-	return (u8) (mra_msg->offset8 >> 6);
-}
-
-static inline void cm_mra_set_msg_mraed(struct cm_mra_msg *mra_msg, u8 msg)
-{
-	mra_msg->offset8 = (u8) ((mra_msg->offset8 & 0x3F) | (msg << 6));
-}
-
-static inline u8 cm_mra_get_service_timeout(struct cm_mra_msg *mra_msg)
-{
-	return (u8) (mra_msg->offset9 >> 3);
-}
-
-static inline void cm_mra_set_service_timeout(struct cm_mra_msg *mra_msg,
-					      u8 service_timeout)
-{
-	mra_msg->offset9 = (u8) ((mra_msg->offset9 & 0x07) |
-				 (service_timeout << 3));
-}
-
 struct cm_rej_msg {
 	struct ib_mad_hdr hdr;
 
@@ -454,27 +194,6 @@ struct cm_rej_msg {
 	u8 private_data[IB_CM_REJ_PRIVATE_DATA_SIZE];
 
 } __packed;
-
-static inline u8 cm_rej_get_msg_rejected(struct cm_rej_msg *rej_msg)
-{
-	return (u8) (rej_msg->offset8 >> 6);
-}
-
-static inline void cm_rej_set_msg_rejected(struct cm_rej_msg *rej_msg, u8 msg)
-{
-	rej_msg->offset8 = (u8) ((rej_msg->offset8 & 0x3F) | (msg << 6));
-}
-
-static inline u8 cm_rej_get_reject_info_len(struct cm_rej_msg *rej_msg)
-{
-	return (u8) (rej_msg->offset9 >> 1);
-}
-
-static inline void cm_rej_set_reject_info_len(struct cm_rej_msg *rej_msg,
-					      u8 len)
-{
-	rej_msg->offset9 = (u8) ((rej_msg->offset9 & 0x1) | (len << 1));
-}
 
 struct cm_rep_msg {
 	struct ib_mad_hdr hdr;
@@ -538,64 +257,6 @@ static inline void cm_rep_set_starting_psn(struct cm_rep_msg *rep_msg,
 {
 	rep_msg->offset20 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
 			    (be32_to_cpu(rep_msg->offset20) & 0x000000FF));
-}
-
-static inline u8 cm_rep_get_target_ack_delay(struct cm_rep_msg *rep_msg)
-{
-	return (u8) (rep_msg->offset26 >> 3);
-}
-
-static inline void cm_rep_set_target_ack_delay(struct cm_rep_msg *rep_msg,
-					       u8 target_ack_delay)
-{
-	rep_msg->offset26 = (u8) ((rep_msg->offset26 & 0x07) |
-				  (target_ack_delay << 3));
-}
-
-static inline u8 cm_rep_get_failover(struct cm_rep_msg *rep_msg)
-{
-	return (u8) ((rep_msg->offset26 & 0x06) >> 1);
-}
-
-static inline void cm_rep_set_failover(struct cm_rep_msg *rep_msg, u8 failover)
-{
-	rep_msg->offset26 = (u8) ((rep_msg->offset26 & 0xF9) |
-				  ((failover & 0x3) << 1));
-}
-
-static inline u8 cm_rep_get_flow_ctrl(struct cm_rep_msg *rep_msg)
-{
-	return (u8) (rep_msg->offset26 & 0x01);
-}
-
-static inline void cm_rep_set_flow_ctrl(struct cm_rep_msg *rep_msg,
-					    u8 flow_ctrl)
-{
-	rep_msg->offset26 = (u8) ((rep_msg->offset26 & 0xFE) |
-				  (flow_ctrl & 0x1));
-}
-
-static inline u8 cm_rep_get_rnr_retry_count(struct cm_rep_msg *rep_msg)
-{
-	return (u8) (rep_msg->offset27 >> 5);
-}
-
-static inline void cm_rep_set_rnr_retry_count(struct cm_rep_msg *rep_msg,
-					      u8 rnr_retry_count)
-{
-	rep_msg->offset27 = (u8) ((rep_msg->offset27 & 0x1F) |
-				  (rnr_retry_count << 5));
-}
-
-static inline u8 cm_rep_get_srq(struct cm_rep_msg *rep_msg)
-{
-	return (u8) ((rep_msg->offset27 >> 4) & 0x1);
-}
-
-static inline void cm_rep_set_srq(struct cm_rep_msg *rep_msg, u8 srq)
-{
-	rep_msg->offset27 = (u8) ((rep_msg->offset27 & 0xEF) |
-				  ((srq & 0x1) << 4));
 }
 
 struct cm_rtu_msg {
@@ -672,26 +333,6 @@ struct cm_lap_msg {
 static inline __be32 cm_lap_get_flow_label(struct cm_lap_msg *lap_msg)
 {
 	return cpu_to_be32(be32_to_cpu(lap_msg->offset56) >> 12);
-}
-
-static inline u8 cm_lap_get_traffic_class(struct cm_lap_msg *lap_msg)
-{
-	return (u8) be32_to_cpu(lap_msg->offset56);
-}
-
-static inline u8 cm_lap_get_packet_rate(struct cm_lap_msg *lap_msg)
-{
-	return lap_msg->offset61 & 0x3F;
-}
-
-static inline u8 cm_lap_get_sl(struct cm_lap_msg *lap_msg)
-{
-	return lap_msg->offset62 >> 4;
-}
-
-static inline u8 cm_lap_get_local_ack_timeout(struct cm_lap_msg *lap_msg)
-{
-	return lap_msg->offset63 >> 3;
 }
 
 struct cm_apr_msg {
